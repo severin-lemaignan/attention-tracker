@@ -11,3 +11,9 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+-----
+
+Note that some parts of this project are made available by Tristan Hume under
+the MIT license. This is specified in the corresponding source files
+(find_eye_center.cpp, find_eye_center.hpp, helpers.cpp, helpers.hpp).

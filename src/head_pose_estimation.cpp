@@ -13,6 +13,9 @@
 
 #include "head_pose_estimation.hpp"
 #include "face_reconstruction.hpp"
+#include "find_eye_center.hpp"
+
+const float EYE_ROI_ENLARGE_FACTOR = 25; // (percentage of the detected eye width)
 
 using namespace dlib;
 using namespace std;
@@ -66,6 +69,67 @@ HeadPoseEstimation::HeadPoseEstimation(const string& face_detection_model, float
     deserialize(face_detection_model) >> pose_model;
 }
 
+pair<Rect,Rect> HeadPoseEstimation::eyesROI(const full_object_detection& face) const
+{
+    // Left eye
+    Rect leye_roi(Point2f(toCv(face.part(36)).x, min(toCv(face.part(37)).y,
+                                                     toCv(face.part(38)).y)),
+                  Point2f(toCv(face.part(39)).x, max(toCv(face.part(40)).y,
+                                                     toCv(face.part(41)).y)));
+
+    auto lmargin = EYE_ROI_ENLARGE_FACTOR/100 * leye_roi.width;
+
+    leye_roi.x -= lmargin; leye_roi.y -= lmargin;
+    leye_roi.width += 2 * lmargin; leye_roi.height += 2 * lmargin;
+
+    // Right eye
+    Rect reye_roi(Point2f(toCv(face.part(42)).x, min(toCv(face.part(43)).y,
+                                                     toCv(face.part(44)).y)),
+                  Point2f(toCv(face.part(45)).x, max(toCv(face.part(46)).y,
+                                                     toCv(face.part(47)).y)));
+
+    auto rmargin = EYE_ROI_ENLARGE_FACTOR/100 * leye_roi.width;
+
+    reye_roi.x -= rmargin; reye_roi.y -= rmargin;
+    reye_roi.width += 2 * rmargin; reye_roi.height += 2 * rmargin;
+
+    return make_pair(leye_roi, reye_roi);
+}
+
+pair<Point2f, Point2f>
+HeadPoseEstimation::pupilsRelativePose(cv::InputArray _image,
+                                       const full_object_detection& face) const
+{
+    Mat image = _image.getMat();
+
+    Rect left_eye_roi, right_eye_roi;
+
+    tie(left_eye_roi, right_eye_roi) = eyesROI(face);
+
+#ifdef HEAD_POSE_ESTIMATION_DEBUG
+    cv::rectangle(_debug, left_eye_roi, Scalar(0,0,128), 1);
+    cv::rectangle(_debug, right_eye_roi, Scalar(0,0,128), 1);
+#endif
+
+    auto left_pupil = findEyeCenter(image, left_eye_roi);
+    auto right_pupil = findEyeCenter(image, right_eye_roi);
+
+#ifdef HEAD_POSE_ESTIMATION_DEBUG
+    circle(_debug, Point(left_pupil.x, left_pupil.y) + left_eye_roi.tl(), 2, Scalar(0,0,255), 2);
+    circle(_debug, Point(right_pupil.x, right_pupil.y) + right_eye_roi.tl(), 2, Scalar(0,0,255), 2);
+#endif
+    Point2f left_center = left_eye_roi.br() - left_eye_roi.tl();
+    Point2f left_pupil_relative = left_pupil - left_center * 0.5;
+    left_pupil_relative.x /= left_eye_roi.width/2;
+    left_pupil_relative.y /= left_eye_roi.height/2;
+
+    Point2f right_center = right_eye_roi.br() - right_eye_roi.tl();
+    Point2f right_pupil_relative = right_pupil - right_center * 0.5;
+    right_pupil_relative.x /= right_eye_roi.width/2;
+    right_pupil_relative.y /= right_eye_roi.height/2;
+
+    return make_pair(left_pupil_relative, right_pupil_relative);
+}
 
 std::vector<std::vector<Point>> HeadPoseEstimation::update(cv::InputArray _image)
 {
@@ -164,6 +228,11 @@ std::vector<std::vector<Point>> HeadPoseEstimation::update(cv::InputArray _image
     }
 
 #endif
+
+    for (const auto& shape :shapes) {
+        Point2f left_pupil, right_pupil;
+        tie(left_pupil, right_pupil) = pupilsRelativePose(image, shape);
+    }
 
     return all_features;
 }
