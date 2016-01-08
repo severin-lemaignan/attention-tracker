@@ -30,13 +30,6 @@ const float kWeightDivisor = 1.f;
 const double kGradientThreshold = 50.f;
 const int kWeightBlurSize = 5;
 
-// Postprocessing
-const bool kEnablePostProcess = true;
-const float kPostProcessThreshold = 0.97;
-
-// Forward declarations
-Mat floodKillEdges(Mat &mat);
-
 Point2f unscalePoint(Point p, Rect origSize) {
     float ratio = (kFastEyeWidth/origSize.width);
     int x = p.x / ratio;
@@ -89,15 +82,28 @@ void testPossibleCentersFormula(int x, int y, const Mat &weight,double gx, doubl
     }
 }
 
-Point2f findEyeCenter(Mat face, Rect eye) {
+Point2f findEyeCenter(InputArray _face, Rect eye_roi, InputArray _eye_mask) {
+
+    Mat face = _face.getMat();
+    Mat eye_mask_unscaled = _eye_mask.getMat();
+
     Mat eyeROIUnscaled;
-    cvtColor( face(eye), eyeROIUnscaled, CV_BGR2GRAY );
+    cvtColor( face(eye_roi), eyeROIUnscaled, CV_BGR2GRAY );
 
     Mat eyeROI;
+    Mat eye_mask;
 
-    resize(eyeROIUnscaled, eyeROI,
-           Size(kFastEyeWidth,
-                (kFastEyeWidth / eyeROIUnscaled.cols * eyeROIUnscaled.rows)));
+    if (eyeROIUnscaled.cols > kFastEyeWidth) {
+        resize(eyeROIUnscaled, eyeROI,
+               Size(kFastEyeWidth,
+                    (kFastEyeWidth / eyeROIUnscaled.cols * eyeROIUnscaled.rows)));
+
+        resize(eye_mask_unscaled, eye_mask,eyeROI.size(), 0,0, INTER_NEAREST);
+    }
+    else {
+        eyeROI = eyeROIUnscaled;
+        eye_mask = eye_mask_unscaled;
+    }
 
     //-- Find the gradient
     Mat gradientX = computeMatXGradient(eyeROI);
@@ -163,56 +169,12 @@ Point2f findEyeCenter(Mat face, Rect eye) {
     //-- Find the maximum point
     Point maxP;
     double maxVal;
-    minMaxLoc(out, NULL,&maxVal,NULL,&maxP);
+    minMaxLoc(out, NULL,&maxVal,NULL,&maxP, eye_mask);
 
-    //-- Flood fill the edges
-    if(kEnablePostProcess) {
-        Mat floodClone;
-        //double floodThresh = computeDynamicThreshold(out, 1.5);
-        double floodThresh = maxVal * kPostProcessThreshold;
-        threshold(out, floodClone, floodThresh, 0.0f, THRESH_TOZERO);
-
-        Mat mask = floodKillEdges(floodClone);
-
-        // redo max
-        minMaxLoc(out, NULL,&maxVal,NULL,&maxP,mask);
-    }
-    return unscalePoint(maxP,eye);
+    return unscalePoint(maxP,eye_roi);
 }
 
 bool floodShouldPushPoint(const Point &np, const Mat &mat) {
     return inMat(np, mat.rows, mat.cols);
 }
 
-// returns a mask
-Mat floodKillEdges(Mat &mat) {
-
-    Mat mask(mat.rows, mat.cols, CV_8U, 255);
-    queue<Point> toDo;
-    toDo.push(Point(0,0));
-    while (!toDo.empty()) {
-        Point p = toDo.front();
-        toDo.pop();
-        if (mat.at<float>(p) == 0.0f) {
-            continue;
-        }
-
-        // add in every direction
-        Point np(p.x + 1, p.y); // right
-        if (floodShouldPushPoint(np, mat)) toDo.push(np);
-
-        np.x = p.x - 1; np.y = p.y; // left
-        if (floodShouldPushPoint(np, mat)) toDo.push(np);
-
-        np.x = p.x; np.y = p.y + 1; // down
-        if (floodShouldPushPoint(np, mat)) toDo.push(np);
-
-        np.x = p.x; np.y = p.y - 1; // up
-        if (floodShouldPushPoint(np, mat)) toDo.push(np);
-
-        // kill it
-        mat.at<float>(p) = 0.0f;
-        mask.at<uchar>(p) = 0;
-    }
-    return mask;
-}

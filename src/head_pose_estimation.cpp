@@ -69,7 +69,8 @@ HeadPoseEstimation::HeadPoseEstimation(const string& face_detection_model, float
     deserialize(face_detection_model) >> pose_model;
 }
 
-pair<Rect,Rect> HeadPoseEstimation::eyesROI(const full_object_detection& face) const
+
+tuple<std::array<Point, 6>, Rect, std::array<Point, 6>, Rect> HeadPoseEstimation::eyesROI(const full_object_detection& face) const
 {
     // Left eye
     Rect leye_roi(Point2f(toCv(face.part(36)).x, min(toCv(face.part(37)).y,
@@ -82,6 +83,14 @@ pair<Rect,Rect> HeadPoseEstimation::eyesROI(const full_object_detection& face) c
     leye_roi.x -= lmargin; leye_roi.y -= lmargin;
     leye_roi.width += 2 * lmargin; leye_roi.height += 2 * lmargin;
 
+    std::array<Point, 6> leye = {toCvI(face.part(36)) - leye_roi.tl(),
+                                 toCvI(face.part(37)) - leye_roi.tl(),
+                                 toCvI(face.part(38)) - leye_roi.tl(),
+                                 toCvI(face.part(39)) - leye_roi.tl(),
+                                 toCvI(face.part(40)) - leye_roi.tl(),
+                                 toCvI(face.part(41)) - leye_roi.tl()
+                                };
+
     // Right eye
     Rect reye_roi(Point2f(toCv(face.part(42)).x, min(toCv(face.part(43)).y,
                                                      toCv(face.part(44)).y)),
@@ -93,7 +102,15 @@ pair<Rect,Rect> HeadPoseEstimation::eyesROI(const full_object_detection& face) c
     reye_roi.x -= rmargin; reye_roi.y -= rmargin;
     reye_roi.width += 2 * rmargin; reye_roi.height += 2 * rmargin;
 
-    return make_pair(leye_roi, reye_roi);
+    std::array<Point, 6> reye = {toCvI(face.part(42)) - reye_roi.tl(),
+                                 toCvI(face.part(43)) - reye_roi.tl(),
+                                 toCvI(face.part(44)) - reye_roi.tl(),
+                                 toCvI(face.part(45)) - reye_roi.tl(),
+                                 toCvI(face.part(46)) - reye_roi.tl(),
+                                 toCvI(face.part(47)) - reye_roi.tl()
+                                };
+
+    return make_tuple(leye, leye_roi, reye, reye_roi);
 }
 
 pair<Point2f, Point2f>
@@ -102,21 +119,24 @@ HeadPoseEstimation::pupilsRelativePose(cv::InputArray _image,
 {
     Mat image = _image.getMat();
 
+    std::array<Point, 6> left_eye, right_eye;
     Rect left_eye_roi, right_eye_roi;
 
-    tie(left_eye_roi, right_eye_roi) = eyesROI(face);
+    tie(left_eye, left_eye_roi, right_eye, right_eye_roi) = eyesROI(face);
+
+    // Create masks for the left and right eyes
+    Mat left_mask = Mat::zeros(left_eye_roi.size(), CV_8UC1);
+    fillConvexPoly(left_mask, left_eye.data(), left_eye.size(), Scalar(255,255,255));
+
+    Mat right_mask = Mat::zeros(right_eye_roi.size(), CV_8UC1);
+    fillConvexPoly(right_mask, right_eye.data(), right_eye.size(), Scalar(255,255,255));
+
+    auto left_pupil = findEyeCenter(image, left_eye_roi, left_mask);
+    auto right_pupil = findEyeCenter(image, right_eye_roi, right_mask);
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
-    cv::rectangle(_debug, left_eye_roi, Scalar(0,0,128), 1);
-    cv::rectangle(_debug, right_eye_roi, Scalar(0,0,128), 1);
-#endif
-
-    auto left_pupil = findEyeCenter(image, left_eye_roi);
-    auto right_pupil = findEyeCenter(image, right_eye_roi);
-
-#ifdef HEAD_POSE_ESTIMATION_DEBUG
-    circle(_debug, Point(left_pupil.x, left_pupil.y) + left_eye_roi.tl(), 2, Scalar(0,0,255), 2);
-    circle(_debug, Point(right_pupil.x, right_pupil.y) + right_eye_roi.tl(), 2, Scalar(0,0,255), 2);
+    circle(_debug, Point(left_pupil.x, left_pupil.y) + left_eye_roi.tl(), 4, Scalar(0,0,255), 2);
+    circle(_debug, Point(right_pupil.x, right_pupil.y) + right_eye_roi.tl(), 4, Scalar(0,0,255), 2);
 #endif
     Point2f left_center = left_eye_roi.br() - left_eye_roi.tl();
     Point2f left_pupil_relative = left_pupil - left_center * 0.5;

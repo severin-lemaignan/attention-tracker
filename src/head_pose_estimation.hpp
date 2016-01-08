@@ -115,9 +115,16 @@ private:
 
     void drawPose(const head_pose& detected_pose, size_t face_idx, cv::Mat& result) const;
 
-    /** Returns a pair (left eye ROI, right eye ROI) in a given detected face
+
+    /** Returns a tuple (left eye contour, left eye ROI, right eye contour,
+     * right eye ROI) in a given detected face.
+     *
+     * Note that the contour coordinates are relative to the top-left corner
+     * of the ROI.
      */
-    std::pair<cv::Rect,cv::Rect> eyesROI(const dlib::full_object_detection& face) const;
+    std::tuple<std::array<cv::Point, 6>, cv::Rect,
+               std::array<cv::Point, 6>, cv::Rect>
+    eyesROI(const dlib::full_object_detection& face) const;
 
     /** Returns the position of the left and right pupils, relative to the left
      * and right center of the eye, normalized with respect to the width/height

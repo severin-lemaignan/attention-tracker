@@ -13,6 +13,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <opencv2/core/core.hpp>
 
-cv::Point2f findEyeCenter(cv::Mat face, cv::Rect eye);
+cv::Point2f findEyeCenter(cv::InputArray face, cv::Rect eye_roi, cv::InputArray eye_mask);
 
 #endif
