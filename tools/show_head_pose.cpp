@@ -76,9 +76,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    while (true) {
+    int i = 0;
+    while(true) {
         auto ok = video_in.read(frame);
         if (!ok) break;
+        i++;
 
         auto t_start = getTickCount();
 
@@ -86,8 +88,7 @@ int main(int argc, char **argv) {
         auto poses = estimator.poses();
 
         auto t_end = getTickCount();
-        cout << "Processing time for this frame: "
-             << (t_end - t_start) / getTickFrequency() * 1000. << "ms" << endl;
+        cout << "Processing time for frame " << i << ": " << (t_end-t_start) / getTickFrequency() * 1000. << "ms" << endl;
 
         imshow("headpose",
                estimator.drawDetections(frame, all_features, poses));

@@ -17,6 +17,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <iostream>
 
 #include "helpers.hpp"
 
@@ -30,12 +32,6 @@ const float kWeightDivisor = 1.f;
 const double kGradientThreshold = 50.f;
 const int kWeightBlurSize = 5;
 
-Point2f unscalePoint(Point p, Rect origSize) {
-    float ratio = (kFastEyeWidth/origSize.width);
-    int x = p.x / ratio;
-    int y = p.y / ratio;
-    return Point2f(x,y);
-}
 
 Mat computeMatXGradient(const Mat &mat) {
     Mat out(mat.rows,mat.cols,CV_64F);
@@ -80,6 +76,13 @@ void testPossibleCentersFormula(int x, int y, const Mat &weight,double gx, doubl
             }
         }
     }
+}
+
+void show(string name, Mat img) {
+
+    Mat tmp;
+    resize(img, tmp, Size(0,0), 10, 10);
+    imshow(name, tmp);
 }
 
 Point2f findEyeCenter(InputArray _face, Rect eye_roi, InputArray _eye_mask) {
@@ -166,12 +169,22 @@ Point2f findEyeCenter(InputArray _face, Rect eye_roi, InputArray _eye_mask) {
     Mat out;
     outSum.convertTo(out, CV_32F,1.0/numGradients);
 
+
     //-- Find the maximum point
     Point maxP;
     double maxVal;
     minMaxLoc(out, NULL,&maxVal,NULL,&maxP, eye_mask);
 
-    return unscalePoint(maxP,eye_roi);
+    Mat debug;
+    addWeighted( eyeROI, 0.8, eye_mask, 0.2, 0.0, debug);
+    cout << maxP  << " ->(unscaled) ";
+    circle(debug, maxP, 2, Scalar(0,0,255), 2);
+    show("mask", debug);
+
+    float ratio = (float)(eyeROIUnscaled.size().width) / eyeROI.size().width;
+    cout << "(x" << ratio << ") ";
+    cout << Point2f(maxP.x * ratio, maxP.y * ratio) << endl;
+    return Point2f(maxP.x * ratio, maxP.y * ratio);
 }
 
 bool floodShouldPushPoint(const Point &np, const Mat &mat) {

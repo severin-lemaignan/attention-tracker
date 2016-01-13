@@ -135,8 +135,12 @@ HeadPoseEstimation::pupilsRelativePose(cv::InputArray _image,
     auto right_pupil = findEyeCenter(image, right_eye_roi, right_mask);
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
-    circle(_debug, Point(left_pupil.x, left_pupil.y) + left_eye_roi.tl(), 4, Scalar(0,0,255), 2);
+    circle(_debug, Point(left_pupil.x, left_pupil.y) + left_eye_roi.tl(), 1, Scalar(0,0,255), 1);
     circle(_debug, Point(right_pupil.x, right_pupil.y) + right_eye_roi.tl(), 4, Scalar(0,0,255), 2);
+
+    Mat left_eye_debug;
+    resize(_debug(left_eye_roi), left_eye_debug, Size(0,0), 10, 10);
+    imshow("left eye", left_eye_debug);
 #endif
     Point2f left_center = left_eye_roi.br() - left_eye_roi.tl();
     Point2f left_pupil_relative = left_pupil - left_center * 0.5;
