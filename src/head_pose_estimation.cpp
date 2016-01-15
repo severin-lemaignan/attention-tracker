@@ -427,6 +427,58 @@ void HeadPoseEstimation::drawPose(const head_pose& detected_pose, size_t face_id
         // circle(result, point,2, circle_color,2);
     // }
 
+    Matx44f left_eye_pose = {
+        1,    0,    0,    -12,
+        0,    1,    0,    35,
+        0,    0,    1,    0,
+        0,    0,    0,    1
+    };
+    Matx44f right_eye_pose = {
+        1,    0,    0,    -12,
+        0,    1,    0,    -35,
+        0,    0,    1,    0,
+        0,    0,    0,    1
+    };
+
+
+    std::vector<Point3f> axes;
+    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,0,1)));
+    axes.push_back(toPoint3f(left_eye_pose * Vec4f(50,0,0,1)));
+    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,50,0,1)));
+    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,50,1)));
+
+    std::vector<Point2f> projected_axes;
+
+    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
+
+    line(_debug, projected_axes[0], projected_axes[3], Scalar(255,0,0),2,CV_AA);
+    line(_debug, projected_axes[0], projected_axes[2], Scalar(0,255,0),2,CV_AA);
+    line(_debug, projected_axes[0], projected_axes[1], Scalar(0,0,255),2,CV_AA);
+
+    axes.clear();
+    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,0,0,1)));
+    axes.push_back(toPoint3f(right_eye_pose * Vec4f(50,0,0,1)));
+    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,50,0,1)));
+    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,0,50,1)));
+
+
+    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
+
+    line(_debug, projected_axes[0], projected_axes[3], Scalar(255,0,0),2,CV_AA);
+    line(_debug, projected_axes[0], projected_axes[2], Scalar(0,255,0),2,CV_AA);
+    line(_debug, projected_axes[0], projected_axes[1], Scalar(0,0,255),2,CV_AA);
+    
+
+
+    axes.clear();
+    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,0,1)));
+    axes.push_back(toPoint3f(left_eye_pose * Vec4f(1000,0,0,1)));
+
+    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
+
+    line(_debug, projected_axes[0], projected_axes[1], Scalar(255,255,0),1,CV_AA);
+
+
     std::vector<Point3f> axes;
     axes.push_back(Point3f(0,0,0));
     axes.push_back(Point3f(50,0,0));
