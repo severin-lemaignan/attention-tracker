@@ -427,56 +427,99 @@ void HeadPoseEstimation::drawPose(const head_pose& detected_pose, size_t face_id
         // circle(result, point,2, circle_color,2);
     // }
 
-    Matx44f left_eye_pose = {
-        1,    0,    0,    -12,
-        0,    1,    0,    35,
-        0,    0,    1,    0,
-        0,    0,    0,    1
-    };
-    Matx44f right_eye_pose = {
-        1,    0,    0,    -12,
-        0,    1,    0,    -35,
-        0,    0,    1,    0,
-        0,    0,    0,    1
-    };
-
-
-    std::vector<Point3f> axes;
-    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,0,1)));
-    axes.push_back(toPoint3f(left_eye_pose * Vec4f(50,0,0,1)));
-    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,50,0,1)));
-    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,50,1)));
-
-    std::vector<Point2f> projected_axes;
-
-    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
-
-    line(_debug, projected_axes[0], projected_axes[3], Scalar(255,0,0),2,CV_AA);
-    line(_debug, projected_axes[0], projected_axes[2], Scalar(0,255,0),2,CV_AA);
-    line(_debug, projected_axes[0], projected_axes[1], Scalar(0,0,255),2,CV_AA);
-
-    axes.clear();
-    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,0,0,1)));
-    axes.push_back(toPoint3f(right_eye_pose * Vec4f(50,0,0,1)));
-    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,50,0,1)));
-    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,0,50,1)));
-
-
-    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
-
-    line(_debug, projected_axes[0], projected_axes[3], Scalar(255,0,0),2,CV_AA);
-    line(_debug, projected_axes[0], projected_axes[2], Scalar(0,255,0),2,CV_AA);
-    line(_debug, projected_axes[0], projected_axes[1], Scalar(0,0,255),2,CV_AA);
+//    Matx44f left_eye_pose = {
+//        1,    0,    0,    -12,
+//        0,    1,    0,    35,
+//        0,    0,    1,    0,
+//        0,    0,    0,    1
+//    };
+//    Matx44f right_eye_pose = {
+//        1,    0,    0,    -12,
+//        0,    1,    0,    -35,
+//        0,    0,    1,    0,
+//        0,    0,    0,    1
+//    };
+//
+//
+//    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,0,1)));
+//    axes.push_back(toPoint3f(left_eye_pose * Vec4f(50,0,0,1)));
+//    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,50,0,1)));
+//    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,50,1)));
+//
+//    std::vector<Point2f> projected_axes;
+//
+//    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
+//
+//    line(_debug, projected_axes[0], projected_axes[1], Scalar(255,0,0),2,CV_AA);
+//    line(_debug, projected_axes[0], projected_axes[2], Scalar(0,255,0),2,CV_AA);
+//    line(_debug, projected_axes[0], projected_axes[3], Scalar(0,0,255),2,CV_AA);
+//
+//    axes.clear();
+//    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,0,0,1)));
+//    axes.push_back(toPoint3f(right_eye_pose * Vec4f(50,0,0,1)));
+//    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,50,0,1)));
+//    axes.push_back(toPoint3f(right_eye_pose * Vec4f(0,0,50,1)));
+//
+//
+//    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
+//
+//    line(_debug, projected_axes[0], projected_axes[1], Scalar(255,0,0),2,CV_AA);
+//    line(_debug, projected_axes[0], projected_axes[2], Scalar(0,255,0),2,CV_AA);
+//    line(_debug, projected_axes[0], projected_axes[3], Scalar(0,0,255),2,CV_AA);
+//    
+//
+//
+//    axes.clear();
+//    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,0,1)));
+//    axes.push_back(toPoint3f(left_eye_pose * Vec4f(1000,0,0,1)));
+//
+//    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
+//
+//    line(_debug, projected_axes[0], projected_axes[1], Scalar(255,255,0),1,CV_AA);
     
+    axes.clear();
+    axes.push_back(toPoint3d(pose * Vec4d(0,0,0,1)));
+    axes.push_back(toPoint3d(pose * Vec4d(0.05,0,0,1))); // axis are 5cm long
+    axes.push_back(toPoint3d(pose * Vec4d(0,0.05,0,1)));
+    axes.push_back(toPoint3d(pose * Vec4d(0,0,0.05,1)));
 
+    projectPoints(axes, Vec3f(0.,0.,0.), Vec3f(0.,0.,0.), projection, noArray(), projected_axes);
+
+    line(_debug, projected_axes[0], projected_axes[1], Scalar(255,0,0),2,CV_AA);
+    line(_debug, projected_axes[0], projected_axes[2], Scalar(0,255,0),2,CV_AA);
+    line(_debug, projected_axes[0], projected_axes[3], Scalar(0,0,255),2,CV_AA);
+
+
+    // compute intersection between gaze and camera plane (ie screen on a laptop)
+
+    // we want to find P such as P belong to the ray casted from the sellion, oriented along the gaze direction and to the camera plane:
+    // Ray: P = P0 + t.V  (P0: gaze origin, V: gaze vector)
+    // Plane: P ∙ N + d = 0 (N: normal vector of the plane, d: distance to origin)
+    // => t = -(P0 ∙ N + d) / (V ∙ N)
+    // and P = P0 + t.V
+    //
+    // In our case, d = 0, N = [0,0,1]
+
+    auto P0 = toVec3d(pose.col(3)); // translation component of the pose
+    auto V = toVec3d(pose * Vec4d(1,0,0,1)) - P0;
+    normalize(V,V);
+    auto N = Vec3d(0,0,1);
+
+    auto t = - (P0.dot(N)) / (V.dot(N));
+
+    auto P = P0 + t * V;
+
+    cout << endl << "Origin of the gaze: " << P0 << endl;
+    cout << "Gaze vector: " << V << endl;
+    cout << "Position of the gaze on the screen: " << P << endl;
 
     axes.clear();
-    axes.push_back(toPoint3f(left_eye_pose * Vec4f(0,0,0,1)));
-    axes.push_back(toPoint3f(left_eye_pose * Vec4f(1000,0,0,1)));
+    axes.push_back(Point3d(V * 0.1 + P0));
+    axes.push_back(Point3d(Vec3d(P0)));
 
-    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
+    projectPoints(axes, Vec3f(0.,0.,0.), Vec3f(0.,0.,0.), projection, noArray(), projected_axes);
 
-    line(_debug, projected_axes[0], projected_axes[1], Scalar(255,255,0),1,CV_AA);
+    line(_debug, projected_axes[0], projected_axes[1], Scalar(255,255,255),2,CV_AA);
 
 
     std::vector<Point3f> axes;
