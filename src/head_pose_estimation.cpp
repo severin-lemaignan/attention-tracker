@@ -12,125 +12,45 @@
 #endif
 
 #include "head_pose_estimation.hpp"
+#include "face_reconstruction.hpp"
 
 using namespace dlib;
 using namespace std;
 using namespace cv;
 
+inline Point3f toPoint3f(const Vec4f coords)
+{
+    return Point3f(coords[0], coords[1], coords[2]);
+}
 
-const std::vector<std::array<int,3>> FACE_TRIANGLES = {
-    // chicks
-    {35, 13, 45}, {31, 3, 36},
-    {35, 54, 13}, {31, 48, 3},
-    {35, 42, 47}, {31, 39, 40},
-    {35, 45, 47}, {31, 36, 40},
-    {13, 16, 45}, { 3, 0, 36},
-    {26, 16, 45}, {17, 0, 36},
+inline Point3d toPoint3d(const Vec4d coords)
+{
+    return Point3d(coords[0], coords[1], coords[2]);
+}
 
-    // eyebrows
-    {26, 24, 45}, {17, 19, 36},
-    {43, 24, 45}, {36, 19, 38},
+inline Vec3d toVec3d(const Vec4d coords)
+{
+    return Vec3d(coords[0], coords[1], coords[2]);
+}
 
-    // eyes
-    {45, 43, 47}, {36, 38, 40},
-    {42, 43, 47}, {39, 38, 40},
 
-    {42, 43, 22}, {21, 38, 39},
-    {24, 43, 22}, {19, 38, 21},
+template<typename T> inline Point3d toPoint3d(const T coords)
+{
+    return Point3d(coords(0,0), coords(1,0), coords(2,0));
+}
 
-    {42, 27, 22}, {21, 27, 39},
-
-    {21, 27, 22},
-    // nose
-    {35, 27, 30}, {31, 27, 30},
-    {31, 30, 35},
-    {31, 33, 35},
-    {42, 27, 35}, {31, 27, 39},
-    {54, 33, 35}, {48, 33, 31},
-    // mouth
-    {54, 33, 51}, {48, 33, 51},
-    {54, 62, 51}, {48, 62, 51},
-    {54, 62, 66}, {48, 62, 66},
-    {54, 57, 66}, {48, 57, 66},
-    // chin zone
-    {54, 13, 10}, {48, 3, 6},
-    {54, 57, 10}, {48, 57, 6},
-    {8, 57, 10}, {8, 57, 6}
-};
-
-// 2D position of selected facial landmarks when frontally viewed
-const cv::Point2f FRONT_FACE_LANDMARKS[68] = {
-    /* landmark  0*/ {0,54},
-    /* landmark  1*/ {0,0},
-    /* landmark  2*/ {0,0},
-    /* landmark  3*/ {10,193},
-    /* landmark  4*/ {0,0},
-    /* landmark  5*/ {0,0},
-    /* landmark  6*/ {74,312},
-    /* landmark  7*/ {0,0},
-    /* landmark  8*/ {150,344},
-    /* landmark  9*/ {0,0},
-    /* landmark 10*/ {220,312},
-    /* landmark 11*/ {0,0},
-    /* landmark 12*/ {0,0},
-    /* landmark 13*/ {290,193},
-    /* landmark 14*/ {0,0},
-    /* landmark 15*/ {0,0},
-    /* landmark 16*/ {299,54},
-    /* landmark 17*/ {12,32},
-    /* landmark 18*/ {0,0},
-    /* landmark 19*/ {64,0},
-    /* landmark 20*/ {0,0},
-    /* landmark 21*/ {121,20},
-    /* landmark 22*/ {176,20},
-    /* landmark 23*/ {0,0},
-    /* landmark 24*/ {236,0},
-    /* landmark 25*/ {0,0},
-    /* landmark 26*/ {280,32},
-    /* landmark 27*/ {150,45},
-    /* landmark 28*/ {0,0},
-    /* landmark 29*/ {0,0},
-    /* landmark 30*/ {150,150},
-    /* landmark 31*/ {114,164},
-    /* landmark 32*/ {0,0},
-    /* landmark 33*/ {150,179},
-    /* landmark 34*/ {0,0},
-    /* landmark 35*/ {180,164},
-    /* landmark 36*/ {45,45},
-    /* landmark 37*/ {0,0},
-    /* landmark 38*/ {86,36},
-    /* landmark 39*/ {104,50},
-    /* landmark 40*/ {83,55},
-    /* landmark 41*/ {0,0},
-    /* landmark 42*/ {192,50},
-    /* landmark 43*/ {211,35},
-    /* landmark 44*/ {0,0},
-    /* landmark 45*/ {250,46},
-    /* landmark 46*/ {0,0},
-    /* landmark 47*/ {213,55},
-    /* landmark 48*/ {89,226},
-    /* landmark 49*/ {0,0},
-    /* landmark 50*/ {0,0},
-    /* landmark 51*/ {150,217},
-    /* landmark 52*/ {0,0},
-    /* landmark 53*/ {0,0},
-    /* landmark 54*/ {208,226},
-    /* landmark 55*/ {0,0},
-    /* landmark 56*/ {0,0},
-    /* landmark 57*/ {150,250},
-    /* landmark 58*/ {0,0},
-    /* landmark 59*/ {0,0},
-    /* landmark 60*/ {0,0},
-    /* landmark 61*/ {0,0},
-    /* landmark 62*/ {150,227},
-    /* landmark 63*/ {0,0},
-    /* landmark 64*/ {0,0},
-    /* landmark 65*/ {0,0},
-    /* landmark 66*/ {150,228},
-    /* landmark 67*/ {0,0}
-};
+template<typename T> inline Vec3d toVec3d(const T coords)
+{
+    return Vec3d(coords(0,0), coords(1,0), coords(2,0));
+}
 
 inline Point toCv(const dlib::point& p)
+{
+    return Point(p.x(), p.y());
+}
+
+// Integer version
+inline Point toCvI(const dlib::point& p)
 {
     return Point(p.x(), p.y());
 }
@@ -192,28 +112,18 @@ std::vector<std::vector<Point>> HeadPoseEstimation::update(cv::InputArray _image
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
     // Draws the contours of the face and face features onto the image
     
-    //_debug = image.clone();
-    _debug.create(image.size(), image.type());
-    _debug.setTo(Scalar(0,0,0));
+    _debug = image.clone();
 
-    auto reconstructed_size = Size(300,345);
 
-    Mat _reconstructed_face;
-    _reconstructed_face.create(reconstructed_size, image.type());
-    Mat transformed_part;
-    transformed_part.create(reconstructed_size, image.type());
-
-    Mat mask;
-    mask.create(image.size(), image.type());
+    Mat reconstructed_face;
 
     auto color = Scalar(0,128,128);
 
-    for (unsigned long i = 0; i < shapes.size(); ++i)
+    for (unsigned long idx = 0; idx < shapes.size(); ++idx)
     {
-        _reconstructed_face.setTo(Scalar(0,0,0));
-        transformed_part.setTo(Scalar(0,0,0));
 
-        const full_object_detection& d = shapes[i];
+        const full_object_detection& d = shapes[idx];
+//
 
 //        for (unsigned long i = 1; i <= 16; ++i)
 //            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
@@ -229,13 +139,13 @@ std::vector<std::vector<Point>> HeadPoseEstimation::update(cv::InputArray _image
 //            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
 //        line(_debug, toCv(d.part(30)), toCv(d.part(35)), color, 2, CV_AA);
 //
-//        for (unsigned long i = 37; i <= 41; ++i)
-//            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-//        line(_debug, toCv(d.part(36)), toCv(d.part(41)), color, 2, CV_AA);
-//
-//        for (unsigned long i = 43; i <= 47; ++i)
-//            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-//        line(_debug, toCv(d.part(42)), toCv(d.part(47)), color, 2, CV_AA);
+        for (unsigned long i = 37; i <= 41; ++i)
+            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 1, CV_AA);
+        line(_debug, toCv(d.part(36)), toCv(d.part(41)), color, 1, CV_AA);
+
+        for (unsigned long i = 43; i <= 47; ++i)
+            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 1, CV_AA);
+        line(_debug, toCv(d.part(42)), toCv(d.part(47)), color, 1, CV_AA);
 //
 //        for (unsigned long i = 49; i <= 59; ++i)
 //            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
@@ -245,45 +155,14 @@ std::vector<std::vector<Point>> HeadPoseEstimation::update(cv::InputArray _image
 //            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
 //        line(_debug, toCv(d.part(60)), toCv(d.part(67)), color, 2, CV_AA);
 
-        //for (auto i = 0; i < 68 ; i++) {
-        //    putText(_debug, to_string(i), toCv(d.part(i)), FONT_HERSHEY_DUPLEX, 0.6, Scalar(255,255,255));
-        //}
+//
+//        for (auto i = 0; i < 68 ; i++) {
+//            putText(_debug, to_string(i), toCv(d.part(i)), FONT_HERSHEY_DUPLEX, 0.3, Scalar(255,255,255));
+//        }
         
-        for (auto trgl : FACE_TRIANGLES) {
-
-            Point face[3] = {toCv(d.part(trgl[0])), toCv(d.part(trgl[1])), toCv(d.part(trgl[2]))};
-
-            mask.setTo(Scalar(0,0,0));
-            fillConvexPoly(mask, face, 3, Scalar(255,255,255));
-
-            line(_debug, toCv(d.part(trgl[0])), toCv(d.part(trgl[1])), Scalar(255,255,255), 1, CV_AA);
-            line(_debug, toCv(d.part(trgl[1])), toCv(d.part(trgl[2])), Scalar(255,255,255), 1, CV_AA);
-            line(_debug, toCv(d.part(trgl[2])), toCv(d.part(trgl[0])), Scalar(255,255,255), 1, CV_AA);
-
-
-            Mat face_part;
-            image.copyTo(face_part, mask);
-
-            Point2f facef[3] = {toCv(d.part(trgl[0])), toCv(d.part(trgl[1])), toCv(d.part(trgl[2]))};
-            Point2f flat_facef[3] = {FRONT_FACE_LANDMARKS[trgl[0]],
-                                     FRONT_FACE_LANDMARKS[trgl[1]],
-                                     FRONT_FACE_LANDMARKS[trgl[2]]};
-
-            auto trans = getAffineTransform(facef, flat_facef);
-
-            warpAffine(face_part,
-                       transformed_part, 
-                       trans, 
-                       transformed_part.size(), 
-                       INTER_LINEAR,
-                       BORDER_REPLICATE);
-            cv::max(transformed_part, _reconstructed_face, _reconstructed_face);
-
-        }
-
-        imshow("reconstructed face " + to_string(i), _reconstructed_face);
-
+        FaceReconstruction::reconstruct(image, d, reconstructed_face);
     }
+
 #endif
 
     return all_features;
