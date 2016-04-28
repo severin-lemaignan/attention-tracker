@@ -13,6 +13,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // "Accurate Eye Centre Localisation by Means of
 // Gradients"
 
+#define FIND_EYE_DEBUG false
+
 #include <queue>
 
 #include <opencv2/objdetect/objdetect.hpp>
@@ -175,15 +177,19 @@ Point2f findEyeCenter(InputArray _face, Rect eye_roi, InputArray _eye_mask) {
     double maxVal;
     minMaxLoc(out, NULL,&maxVal,NULL,&maxP, eye_mask);
 
+#if FIND_EYE_DEBUG
     Mat debug;
     addWeighted( eyeROI, 0.8, eye_mask, 0.2, 0.0, debug);
     cout << maxP  << " ->(unscaled) ";
     circle(debug, maxP, 2, Scalar(0,0,255), 2);
     show("mask", debug);
+#endif
 
     float ratio = (float)(eyeROIUnscaled.size().width) / eyeROI.size().width;
+#if FIND_EYE_DEBUG
     cout << "(x" << ratio << ") ";
     cout << Point2f(maxP.x * ratio, maxP.y * ratio) << endl;
+#endif
     return Point2f(maxP.x * ratio, maxP.y * ratio);
 }
 

@@ -10,6 +10,7 @@
 #include <array>
 #include <string>
 
+#include "pupils.hpp"
 
 // ****** Anthorpometrics of the head ******
 // Relative position of various facial feature relative to sellion (in mm)
@@ -115,33 +116,6 @@ private:
 
     void drawPose(const head_pose& detected_pose, size_t face_idx, cv::Mat& result) const;
 
-
-    /** Returns a tuple (left eye contour, left eye ROI, right eye contour,
-     * right eye ROI) in a given detected face.
-     *
-     * Note that the contour coordinates are relative to the top-left corner
-     * of the ROI.
-     */
-    std::tuple<std::array<cv::Point, 6>, cv::Rect,
-               std::array<cv::Point, 6>, cv::Rect>
-    eyesROI(const dlib::full_object_detection& face) const;
-
-    /** Returns the position of the left and right pupils, relative to the left
-     * and right center of the eye, normalized with respect to the width/height
-     * of each eye.
-     *
-     *   (0.0, 0.0)    (-1.0, 0.0)      (0.0, 1.0)   (1.0, 0.0) ...
-     *    _______        _______        _______       _______
-     *   /       \      /       \      /   O   \     /       \
-     *  <    O    >    < O       >    <         >   <       O >
-     *   \_______/      \_______/      \_______/     \_______/
-     *
-     */
-    std::pair<cv::Point2f, cv::Point2f>
-    pupilsRelativePose(cv::InputArray image, 
-                       const dlib::full_object_detection& face) const;
-
-
     /** Return the point corresponding to the dictionary marker.
     */
     cv::Point2f coordsOf(size_t face_idx, FACIAL_FEATURE feature) const;
@@ -153,6 +127,7 @@ private:
                       cv::Point2f o2, cv::Point2f p2,
                       cv::Point2f &r) const;
 
+    Pupils pupils_detector;
 };
 
 #endif // __HEAD_POSE_ESTIMATION
