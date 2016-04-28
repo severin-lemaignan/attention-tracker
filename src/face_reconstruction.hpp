@@ -13,6 +13,8 @@ class FaceReconstruction {
                                 const dlib::full_object_detection& face,
                                 cv::OutputArray reconstructed_face);
 
+        static bool isdegenerate(const cv::Point2f pts[3],
+                                 const cv::Point2f reproj_pts[3]);
 };
 
 #endif

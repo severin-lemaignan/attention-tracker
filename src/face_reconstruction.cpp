@@ -153,6 +153,17 @@ void FaceReconstruction::reconstruct(cv::InputArray _image,
 
         for (auto trgl : FACE_TRIANGLES) {
 
+            Point2f orig_facef[3] = {toCv(face.part(trgl[0])), 
+                                     toCv(face.part(trgl[1])), 
+                                     toCv(face.part(trgl[2]))};
+
+            Point2f reproj_facef[3] = {FRONT_FACE_LANDMARKS[trgl[0]],
+                                       FRONT_FACE_LANDMARKS[trgl[1]],
+                                       FRONT_FACE_LANDMARKS[trgl[2]]};
+            if (isdegenerate(orig_facef, reproj_facef)) {
+                continue;
+            }
+
             Point orig_face[3] = {toCv(face.part(trgl[0])), 
                                   toCv(face.part(trgl[1])), 
                                   toCv(face.part(trgl[2]))};
@@ -168,13 +179,6 @@ void FaceReconstruction::reconstruct(cv::InputArray _image,
             Mat face_part;
             image.copyTo(face_part, mask);
 
-            Point2f orig_facef[3] = {toCv(face.part(trgl[0])), 
-                                     toCv(face.part(trgl[1])), 
-                                     toCv(face.part(trgl[2]))};
-
-            Point2f reproj_facef[3] = {FRONT_FACE_LANDMARKS[trgl[0]],
-                                       FRONT_FACE_LANDMARKS[trgl[1]],
-                                       FRONT_FACE_LANDMARKS[trgl[2]]};
 
             auto trans = getAffineTransform(orig_facef, reproj_facef);
 
@@ -193,5 +197,21 @@ void FaceReconstruction::reconstruct(cv::InputArray _image,
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
         imshow("reconstructed face" , reconstructed_face);
 #endif
-};
+}
+
+bool FaceReconstruction::isdegenerate(const cv::Point2f pts[3],
+                                      const cv::Point2f reproj_pts[3]) {
+
+
+    const double MINAREA = 10;
+    const double MINRATIO = 0.05;
+
+    // area part on picture
+    double a1 = (pts[1]-pts[0]).cross(pts[2]-pts[0]);
+
+    // reference area
+    double a2 = (reproj_pts[1] - reproj_pts[0]).cross(reproj_pts[2]-reproj_pts[0]);
+
+    return (abs(a1) < MINAREA) || (abs(a1/a2) < MINRATIO);
+}
 
