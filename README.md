@@ -81,6 +81,14 @@ ROS support
 The [ROS](http://www.ros.org/) wrapper provides a convenient node that exposes
 each detected face as a TF frame.
 
+Before building gazr with the ROS wrapper, make sure that you have installed the
+ following ROS- < distro > package dependencies, where
+< distro > is the ROS distribution in your machine.
+For example, this is the case for ROS-kinetic distribution:
+```
+sudo apt-get install ros-kinetic-roscpp ros-kinetic-tf ros-kinetic-std-msgs ros-kinetic-visualization-msgs ros-kinetic-sensor-msgs ros-kinetic-cv-bridge ros-kinetic-image-transport ros-kinetic-image-geometry
+```
+
 Enable the compilation of the ROS wrapper with:
 
 ```
@@ -112,4 +120,3 @@ $ roslaunch gazr gazr.launch --ros-args
 ```
 
 Importantly, you might want to remap the `rgb` and `depth` topics to your liking.
-
