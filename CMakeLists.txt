@@ -101,8 +101,8 @@ if(WITH_TOOLS)
 
     find_package(Boost COMPONENTS program_options REQUIRED)
 
-    add_executable(gazr_benchmark_head_pose_single_frame tools/benchmark_head_pose_estimation_single_frame.cpp)
-    target_link_libraries(gazr_benchmark_head_pose_single_frame gazr ${OpenCV_LIBRARIES})
+    add_executable(gazr_estimate_head_pose tools/estimate_head_pose_from_image_or_file.cpp)
+    target_link_libraries(gazr_estimate_head_pose gazr ${OpenCV_LIBRARIES})
 
     add_executable(gazr_estimate_head_direction tools/estimate_head_direction.cpp)
     target_link_libraries(gazr_estimate_head_direction gazr ${OpenCV_LIBRARIES} ${Boost_LIBRARIES})

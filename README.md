@@ -54,7 +54,7 @@ apt-get install libdlib-dev`
 
 You also need OpenCV. On Ubuntu, `sudo apt-get install libopencv-dev`.
 
-### Installation
+### Installation - 1/2
 
 The library uses a standard ``CMake`` workflow:
 
@@ -64,8 +64,21 @@ $ cmake ..
 $ make
 ```
 
+#### Example - show head pose
+
 Run ``./gazr_show_head_pose ../share/shape_predictor_68_face_landmarks.dat`` to test
 the library. You should get something very similar to the picture above.
+
+#### Example - estimate head pose on image/images
+
+Run ``./gazr_estimate_head_pose ../share/shape_predictor_68_face_landmarks.dat frame.jpg``
+to print the head pose detected in _frame.jpg_.
+
+Run ``./gazr_estimate_head_pose ../share/shape_predictor_68_face_landmarks.dat image_file_names.txt``
+to print the head pose detected in each image file listed in _image\_file\_names.txt_ (image file names written in new lines).
+
+
+### Installation - 2/2
 
 Finally, to install the library:
 
