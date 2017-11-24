@@ -64,13 +64,15 @@ public:
 
     std::vector<head_pose> poses() const;
 
+    /** Returns an augmented image with the detected facial features and head pose drawn in.
+     * 
+     * Leave either detected_features or detected_poses empty to skip drawing the respective detections.
+     */
+    cv::Mat drawDetections(const cv::Mat& original_image, const std::vector<std::vector<cv::Point>>& detected_features, const std::vector<head_pose>& detected_poses);
+
     float focalLength;
     float opticalCenterX;
     float opticalCenterY;
-
-#ifdef HEAD_POSE_ESTIMATION_DEBUG
-    mutable cv::Mat _debug;
-#endif
 
 private:
 
@@ -83,6 +85,10 @@ private:
 
     std::vector<dlib::full_object_detection> shapes;
 
+
+    void drawFeatures(const std::vector<std::vector<cv::Point>>& detected_features, cv::Mat& result) const;
+
+    void drawPose(const head_pose& detected_pose, size_t face_idx, cv::Mat& result) const;
 
     /** Return the point corresponding to the dictionary marker.
     */

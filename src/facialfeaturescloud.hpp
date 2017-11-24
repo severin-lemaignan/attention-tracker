@@ -34,7 +34,7 @@ public:
 private:
 
     template<typename T>
-    cv::Point3f makeFeatureCloud(const std::vector<cv::Point> points2d,
+    void makeFeatureCloud(const std::vector<cv::Point> points2d,
                                  const sensor_msgs::ImageConstPtr& depth_msg,
                                  PointCloud::Ptr& cloud_msg);
 
@@ -60,6 +60,7 @@ private:
 
     // Publishers
     /////////////////////////////////////////////////////////
+    image_transport::Publisher pub;
 
     // prefix prepended to TF frames generated for each frame
     std::string facePrefix;

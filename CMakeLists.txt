@@ -11,9 +11,9 @@ add_definitions(-std=c++11 -DGAZR_VERSION=${VERSION})
 find_package(dlib REQUIRED)
 include_directories(${dlib_INCLUDE_DIRS})
 
-option(DEBUG "Enable debug visualizations" ON)
-option(WITH_TOOLS "Compile sample tools" ON)
-option(WITH_ROS "Build ROS nodes" OFF)
+option(DEBUG_OUTPUT "Enable debug visualizations" OFF)
+option(WITH_TOOLS "Compile sample tools" OFF)
+option(WITH_ROS "Build ROS nodes" ON)
 
 if(WITH_ROS)
 
@@ -32,7 +32,7 @@ if(WITH_ROS)
 
 endif()
 
-if(DEBUG)
+if(DEBUG_OUTPUT)
     find_package(OpenCV COMPONENTS core imgproc calib3d highgui REQUIRED)
 else()
     find_package(OpenCV COMPONENTS core imgproc calib3d REQUIRED)
@@ -53,10 +53,9 @@ if(WITH_ROS)
     )
 endif()
 
-if(DEBUG)
+if(DEBUG_OUTPUT)
     add_definitions(-DHEAD_POSE_ESTIMATION_DEBUG)
 endif()
-
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_library(gazr SHARED src/head_pose_estimation.cpp)

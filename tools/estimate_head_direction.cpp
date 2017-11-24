@@ -111,7 +111,7 @@ int main(int argc, char **argv)
         }
 
 
-        estimator.update(frame);
+        auto all_features = estimator.update(frame);
 
 
         auto poses = estimator.poses();
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
         cout << "}\n" << flush;
 
         if (show_frame) {
-            imshow("headpose", estimator._debug);
+            imshow("headpose", estimator.drawDetections(frame, all_features, poses));
             if(use_camera) {
                 waitKey(10);
             }
