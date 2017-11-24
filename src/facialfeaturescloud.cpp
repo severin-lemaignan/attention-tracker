@@ -47,13 +47,16 @@ FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHa
     /// Publishing
     facial_features_pub = rosNode.advertise<PointCloud>("facial_features", 1);
 
+#ifdef HEAD_POSE_ESTIMATION_DEBUG
+    pub = rgb_it_->advertise("attention_tracker/faces/image",1);
+#endif
 }
 
 /**
  * Based on https://github.com/ros-perception/image_pipeline/blob/indigo/depth_image_proc/src/nodelets/point_cloud_xyzrgb.cpp
  */
 template<typename T>
-Point3f FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> points2d,
+void FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> points2d,
                                                                const sensor_msgs::ImageConstPtr& depth_msg,
                                                                PointCloud::Ptr& cloud_msg) {
 
@@ -191,7 +194,9 @@ void FacialFeaturesPointCloudPublisher::imageCb(const sensor_msgs::ImageConstPtr
 
     
     auto poses = estimator.poses();
-    ROS_INFO_STREAM(poses.size() << " faces detected.");
+#ifdef HEAD_POSE_ESTIMATION_DEBUG
+        ROS_INFO_STREAM(poses.size() << " faces detected.");
+#endif
 
     std_msgs::Char nb_faces;
     nb_faces.data = poses.size();
@@ -227,7 +232,7 @@ void FacialFeaturesPointCloudPublisher::imageCb(const sensor_msgs::ImageConstPtr
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
     if(pub.getNumSubscribers() > 0) {
         ROS_INFO_ONCE("Starting to publish face tracking output for debug");
-        auto debugmsg = cv_bridge::CvImage(msg->header, "bgr8", estimator._debug).toImageMsg();
+        auto debugmsg = cv_bridge::CvImage(rgb_msg->header, "bgr8", estimator.drawDetections(rgb, all_features, poses)).toImageMsg();
         pub.publish(debugmsg);
     }
 #endif

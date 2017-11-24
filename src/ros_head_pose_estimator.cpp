@@ -52,10 +52,12 @@ void HeadPoseEstimator::detectFaces(const sensor_msgs::ImageConstPtr& rgb_msg,
     *                      Faces detection                           *
     ********************************************************************/
 
-    estimator.update(rgb);
+    auto all_features = estimator.update(rgb);
 
     auto poses = estimator.poses();
+#ifdef HEAD_POSE_ESTIMATION_DEBUG
     ROS_INFO_STREAM(poses.size() << " faces detected.");
+#endif
 
     std_msgs::Char nb_faces;
     nb_faces.data = poses.size();
@@ -105,7 +107,7 @@ void HeadPoseEstimator::detectFaces(const sensor_msgs::ImageConstPtr& rgb_msg,
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
     if(pub.getNumSubscribers() > 0) {
         ROS_INFO_ONCE("Starting to publish face tracking output for debug");
-        auto debugmsg = cv_bridge::CvImage(msg->header, "bgr8", estimator._debug).toImageMsg();
+        auto debugmsg = cv_bridge::CvImage(rgb_msg->header, "bgr8", estimator.drawDetections(rgb, all_features, poses)).toImageMsg();
         pub.publish(debugmsg);
     }
 #endif

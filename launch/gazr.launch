@@ -11,7 +11,7 @@
 
     <group ns="$(arg ns)">
         <node pkg="gazr" type="estimate" name="gazr" output="screen" required="true" >
-            <param name="face_model" value="$(find gazr)/shape_predictor_68_face_landmarks.dat" />
+            <param name="face_model" value="$(find gazr)/share/shape_predictor_68_face_landmarks.dat" />
             <param name="prefix" value="$(arg face_prefix)" />
             <param name="with_depth" value="$(arg with_depth)" />
             <remap from="rgb" to="$(arg rgb)"/>

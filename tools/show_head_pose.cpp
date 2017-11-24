@@ -91,13 +91,13 @@ int main(int argc, char **argv)
 
         auto t_start = getTickCount();
 
-        estimator.update(frame);
-        estimator.poses();
+        auto all_features = estimator.update(frame);
+        auto poses = estimator.poses();
 
         auto t_end = getTickCount();
         cout << "Processing time for this frame: " << (t_end-t_start) / getTickFrequency() * 1000. << "ms" << endl;
 
-        imshow("headpose", estimator._debug);
+        imshow("headpose", estimator.drawDetections(frame, all_features, poses));
         if (waitKey(10) >= 0) break;
 
     }

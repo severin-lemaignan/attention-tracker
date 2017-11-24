@@ -4,9 +4,9 @@
 #include <ros/ros.h>
 
 #include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
-#include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
 #endif
 
@@ -71,54 +71,6 @@ std::vector<std::vector<Point>> HeadPoseEstimation::update(cv::InputArray _image
 
         all_features.push_back(features);
     }
-
-
-#ifdef HEAD_POSE_ESTIMATION_DEBUG
-    // Draws the contours of the face and face features onto the image
-    
-    _debug = image.clone();
-
-    auto color = Scalar(0,128,128);
-
-    for (size_t j = 0; j < shapes.size(); ++j)
-    {
-        const full_object_detection& d = shapes[j];
-
-        for (size_t i = 1; i <= 16; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-
-        for (size_t i = 28; i <= 30; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-
-        for (size_t i = 18; i <= 21; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        for (size_t i = 23; i <= 26; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        for (size_t i = 31; i <= 35; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(30)), toCv(d.part(35)), color, 2, CV_AA);
-
-        for (size_t i = 37; i <= 41; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(36)), toCv(d.part(41)), color, 2, CV_AA);
-
-        for (size_t i = 43; i <= 47; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(42)), toCv(d.part(47)), color, 2, CV_AA);
-
-        for (size_t i = 49; i <= 59; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(48)), toCv(d.part(59)), color, 2, CV_AA);
-
-        for (size_t i = 61; i <= 67; ++i)
-            line(_debug, toCv(d.part(i)), toCv(d.part(i-1)), color, 2, CV_AA);
-        line(_debug, toCv(d.part(60)), toCv(d.part(67)), color, 2, CV_AA);
-
-        for (size_t i = 0; i < 68 ; i++) {
-            putText(_debug, to_string(i), toCv(d.part(i)), FONT_HERSHEY_DUPLEX, 0.6, Scalar(255,255,255));
-        }
-    }
-#endif
 
     return all_features;
 }
@@ -185,35 +137,6 @@ head_pose HeadPoseEstimation::pose(size_t face_idx) const
                     0,                0,                0,                     1
     };
 
-#ifdef HEAD_POSE_ESTIMATION_DEBUG
-
-
-    std::vector<Point2f> reprojected_points;
-
-    projectPoints(head_points, rvec, tvec, projection, noArray(), reprojected_points);
-
-    for (auto point : reprojected_points) {
-        circle(_debug, point,2, Scalar(0,255,255),2);
-    }
-
-    std::vector<Point3f> axes;
-    axes.push_back(Point3f(0,0,0));
-    axes.push_back(Point3f(50,0,0));
-    axes.push_back(Point3f(0,50,0));
-    axes.push_back(Point3f(0,0,50));
-    std::vector<Point2f> projected_axes;
-
-    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
-
-    line(_debug, projected_axes[0], projected_axes[3], Scalar(255,0,0),2,CV_AA);
-    line(_debug, projected_axes[0], projected_axes[2], Scalar(0,255,0),2,CV_AA);
-    line(_debug, projected_axes[0], projected_axes[1], Scalar(0,0,255),2,CV_AA);
-
-    putText(_debug, "(" + to_string(int(pose(0,3) * 100)) + "cm, " + to_string(int(pose(1,3) * 100)) + "cm, " + to_string(int(pose(2,3) * 100)) + "cm)", coordsOf(face_idx, SELLION), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0,0,255),2);
-
-
-#endif
-
     return pose;
 }
 
@@ -227,6 +150,115 @@ std::vector<head_pose> HeadPoseEstimation::poses() const {
 
     return res;
 
+}
+
+Mat HeadPoseEstimation::drawDetections(const cv::Mat& original_image, const std::vector<std::vector<Point>>& detected_features, const std::vector<head_pose>& detected_poses) {
+    auto result = original_image.clone();
+    if (!detected_features.empty()) {
+        drawFeatures(detected_features, result);
+    }
+    for (size_t i = 0; i < detected_poses.size(); ++i)
+    {
+        drawPose(detected_poses[i], i, result);
+    }
+    return result;
+}
+
+void HeadPoseEstimation::drawFeatures(const std::vector<std::vector<Point>>& detected_features, Mat& result) const {
+
+    static const auto line_color = Scalar(0,128,128);
+    static const auto text_color = Scalar(255,255,255);
+
+    for (size_t j = 0; j < detected_features.size(); ++j)
+    {
+        const auto& feature_points = detected_features[j];
+
+        for (size_t i = 1; i <= 16; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+
+        for (size_t i = 28; i <= 30; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+
+        for (size_t i = 18; i <= 21; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        for (size_t i = 23; i <= 26; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        for (size_t i = 31; i <= 35; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        line(result, feature_points[30], feature_points[35], line_color, 2, CV_AA);
+
+        for (size_t i = 37; i <= 41; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        line(result, feature_points[36], feature_points[41], line_color, 2, CV_AA);
+
+        for (size_t i = 43; i <= 47; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        line(result, feature_points[42], feature_points[47], line_color, 2, CV_AA);
+
+        for (size_t i = 49; i <= 59; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        line(result, feature_points[48], feature_points[59], line_color, 2, CV_AA);
+
+        for (size_t i = 61; i <= 67; ++i)
+            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        line(result, feature_points[60], feature_points[67], line_color, 2, CV_AA);
+
+        // for (size_t i = 0; i < 68 ; i++) {
+            // putText(result, to_string(i), feature_points[i], FONT_HERSHEY_DUPLEX, 0.6, text_color);
+        // }
+    }
+}
+
+void HeadPoseEstimation::drawPose(const head_pose& detected_pose, size_t face_idx, cv::Mat& result) const {
+    const auto rotation = Mat(detected_pose)(Range(0, 3), Range(0, 3));
+    auto rvec = Mat_<double>(3, 1);
+    Rodrigues(rotation, rvec);
+
+    auto tvec = Mat(detected_pose).col(3).rowRange(0, 3);
+
+    
+    cv::Matx33f projection(focalLength, 0.0,         opticalCenterX,
+                           0.0,         focalLength, opticalCenterY,
+                           0.0,         0.0,         1.0);
+
+    
+    std::vector<Point3f> head_points;
+
+    head_points.push_back(P3D_SELLION);
+    head_points.push_back(P3D_RIGHT_EYE);
+    head_points.push_back(P3D_LEFT_EYE);
+    head_points.push_back(P3D_RIGHT_EAR);
+    head_points.push_back(P3D_LEFT_EAR);
+    head_points.push_back(P3D_MENTON);
+    head_points.push_back(P3D_NOSE);
+    head_points.push_back(P3D_STOMMION);
+
+    // std::vector<Point2f> reprojected_points;
+    // projectPoints(head_points, rvec, tvec, projection, noArray(), reprojected_points);
+ 
+    // static const auto circle_color = Scalar(0, 255, 255);
+    // for (auto point : reprojected_points) {
+        // circle(result, point,2, circle_color,2);
+    // }
+
+    std::vector<Point3f> axes;
+    axes.push_back(Point3f(0,0,0));
+    axes.push_back(Point3f(50,0,0));
+    axes.push_back(Point3f(0,50,0));
+    axes.push_back(Point3f(0,0,50));
+
+    std::vector<Point2f> projected_axes;
+    projectPoints(axes, rvec, tvec, projection, noArray(), projected_axes);
+
+    static const auto x_axis_color = Scalar(255, 0, 0);
+    static const auto y_axis_color = Scalar(0, 255, 0);
+    static const auto z_axis_color = Scalar(0, 0, 255);
+    line(result, projected_axes[0], projected_axes[3], x_axis_color,2,CV_AA);
+    line(result, projected_axes[0], projected_axes[2], y_axis_color,2,CV_AA);
+    line(result, projected_axes[0], projected_axes[1], z_axis_color,2,CV_AA);
+
+    static const auto text_color = Scalar(0,0,255);
+    putText(result, "(" + to_string(int(detected_pose(0,3) * 100)) + "cm, " + to_string(int(detected_pose(1,3) * 100)) + "cm, " + to_string(int(detected_pose(2,3) * 100)) + "cm)", coordsOf(face_idx, SELLION), FONT_HERSHEY_SIMPLEX, 0.5, text_color,2);
 }
 
 Point2f HeadPoseEstimation::coordsOf(size_t face_idx, FACIAL_FEATURE feature) const
