@@ -20,7 +20,6 @@ namespace enc = sensor_msgs::image_encodings;
 FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHandle& rosNode,
                                                                      const std::string& prefix,
                                                                      const std::string& model):
-    rosNode(rosNode),
     estimator(model),
     facePrefix(prefix)
 {
@@ -28,9 +27,6 @@ FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHa
     /// Subscribing
     rgb_it_.reset( new image_transport::ImageTransport(rosNode) );
     depth_it_.reset( new image_transport::ImageTransport(rosNode) );
-
-    exact_sync_.reset( new ExactSynchronizer(ExactSyncPolicy(5), sub_rgb_, sub_depth_, sub_info_) );
-    exact_sync_->registerCallback(bind(&FacialFeaturesPointCloudPublisher::imageCb, this, _1, _2, _3));
 
     // parameter for depth_image_transport hint
     std::string depth_image_transport_param = "depth_image_transport";
@@ -45,17 +41,24 @@ FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHa
     sub_info_.subscribe(rosNode, "camera_info", 1);
 
     /// Publishing
-    facial_features_pub = rosNode.advertise<PointCloud>("facial_features", 1);
+    nb_detected_faces_pub = rosNode.advertise<std_msgs::Char>("nb_detected_faces", 1);
+    facial_features_pub = rosNode.advertise<sensor_msgs::PointCloud2>("facial_features", 1);
 
+#ifdef HEAD_POSE_ESTIMATION_DEBUG
+    pub = rgb_it_->advertise("attention_tracker/faces/image",1);
+#endif
+
+    exact_sync_.reset( new ExactSynchronizer(ExactSyncPolicy(5), sub_rgb_, sub_depth_, sub_info_) );
+    exact_sync_->registerCallback(bind(&FacialFeaturesPointCloudPublisher::imageCb, this, _1, _2, _3));
 }
 
 /**
  * Based on https://github.com/ros-perception/image_pipeline/blob/indigo/depth_image_proc/src/nodelets/point_cloud_xyzrgb.cpp
  */
 template<typename T>
-Point3f FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> points2d,
-                                                               const sensor_msgs::ImageConstPtr& depth_msg,
-                                                               PointCloud::Ptr& cloud_msg) {
+void FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> points2d,
+                                                         const sensor_msgs::ImageConstPtr& depth_msg,
+                                                         sensor_msgs::PointCloud2Ptr& cloud_msg) {
 
     // Use correct principal point from calibration
     float center_x = cameramodel.cx();
@@ -66,6 +69,7 @@ Point3f FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> 
     float constant_x = unit_scaling / cameramodel.fx();
     float constant_y = unit_scaling / cameramodel.fy();
     float bad_point = std::numeric_limits<float>::quiet_NaN ();
+
     int row_step = depth_msg->step / sizeof(T);
 
     sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud_msg, "x");
@@ -74,38 +78,20 @@ Point3f FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> 
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_r(*cloud_msg, "r");
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(*cloud_msg, "g");
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(*cloud_msg, "b");
-    sensor_msgs::PointCloud2Iterator<uint8_t> iter_a(*cloud_msg, "a");
-
 
     for(size_t i = 0; i < points2d.size(); ++i) {
         auto point2d = points2d[i];
         const T* depth_row = reinterpret_cast<const T*>(&depth_msg->data[0]);
 
-        char validPoints = 0;
-        T avgDepth = 0;
+        depth_row += row_step * point2d.y;
 
-        depth_row += row_step * (point2d.y - 2);
-        for (size_t j = point2d.y - 2; j <= point2d.y + 2; j++) {
-            for (size_t i = point2d.x - 2; i <= point2d.x + 2; i++) {
-                T depth = depth_row[i];
-                if(DepthTraits<T>::valid(depth)) {
-                    validPoints++;
-                    avgDepth += depth;
-                }
-            }
-            depth_row += row_step;
-        }
-
-        if(validPoints > 0)
+        T depth = depth_row[point2d.x];
+        if(DepthTraits<T>::valid(depth))
         {
-            T depth = avgDepth / validPoints;
-
             // Fill in XYZ
             *iter_x = (point2d.x - center_x) * depth * constant_x;
             *iter_y = (point2d.y - center_y) * depth * constant_y;
             *iter_z = DepthTraits<T>::toMeters(depth);
-
-            *iter_a = 255;
 
             if(i <= 16) {*iter_r = 100; *iter_g = 100; *iter_b = 100;} // face silhouette
             if(i >= 17 && i <= 21) {*iter_r = 255; *iter_g = 128; *iter_b = 0;} // right eyebrow
@@ -127,7 +113,6 @@ Point3f FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> 
         ++iter_y;
         ++iter_z;
 
-        ++iter_a;
         ++iter_r;
         ++iter_g;
         ++iter_b;
@@ -161,75 +146,87 @@ void FacialFeaturesPointCloudPublisher::imageCb(const sensor_msgs::ImageConstPtr
     ********************************************************************/
 
     auto all_features = estimator.update(rgb);
-    if(all_features.size() > 1) ROS_WARN("More than one face detected. 3D facial features computed for the first one only");
-
-    auto features = all_features[0];
-
-    // Allocate new point cloud message
-    PointCloud::Ptr cloud_msg (new PointCloud);
-    cloud_msg->header = depth_msg->header; // Use depth image time stamp
-    cloud_msg->height = 1;
-    cloud_msg->width  = 68; // nb of facial features
-    cloud_msg->is_dense = false;
-    cloud_msg->is_bigendian = false;
-
-    sensor_msgs::PointCloud2Modifier pcd_modifier(*cloud_msg);
-    pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
-
-    if (depth_msg->encoding == enc::TYPE_16UC1)
+    if(all_features.empty())
     {
-        ROS_INFO_ONCE("Depth stream is 16UC1: mm encoded as integers");
-        makeFeatureCloud<uint16_t>(features, depth_msg, cloud_msg);
+        return;
     }
-    else if (depth_msg->encoding == enc::TYPE_32FC1)
+    else
     {
-        ROS_INFO_ONCE("Depth stream is 32FC1: m encoded as 32bit floats");
-        makeFeatureCloud<float>(features, depth_msg, cloud_msg);
-    }
+        if(all_features.size() > 1)
+        {
+            ROS_WARN("More than one face detected. 3D facial features computed for the first one only");
+        }
 
-    facial_features_pub.publish(cloud_msg);
+        auto features = all_features[0];
+
+        // Allocate new point cloud message
+        sensor_msgs::PointCloud2Ptr cloud_msg (new sensor_msgs::PointCloud2);
+        cloud_msg->header = depth_msg->header; // Use depth image time stamp
+        cloud_msg->height = 1;
+        cloud_msg->width  = 68; // nb of facial features
+        cloud_msg->is_dense = false;
+        cloud_msg->is_bigendian = false;
+
+        sensor_msgs::PointCloud2Modifier pcd_modifier(*cloud_msg);
+        pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+
+        if (depth_msg->encoding == enc::TYPE_16UC1)
+        {
+            ROS_INFO_ONCE("Depth stream is 16UC1: mm encoded as integers");
+            makeFeatureCloud<uint16_t>(features, depth_msg, cloud_msg);
+        }
+        else if (depth_msg->encoding == enc::TYPE_32FC1)
+        {
+            ROS_INFO_ONCE("Depth stream is 32FC1: m encoded as 32bit floats");
+            makeFeatureCloud<float>(features, depth_msg, cloud_msg);
+        }
+
+        facial_features_pub.publish(cloud_msg);
 
     
-    auto poses = estimator.poses();
-    ROS_INFO_STREAM(poses.size() << " faces detected.");
+        auto poses = estimator.poses();
+#ifdef HEAD_POSE_ESTIMATION_DEBUG
+        ROS_INFO_STREAM(poses.size() << " faces detected.");
+#endif
 
-    std_msgs::Char nb_faces;
-    nb_faces.data = poses.size();
+        std_msgs::Char nb_faces;
+        nb_faces.data = poses.size();
 
-    nb_detected_faces_pub.publish(nb_faces);
+        nb_detected_faces_pub.publish(nb_faces);
 
-    for(size_t face_idx = 0; face_idx < poses.size(); ++face_idx) {
+        for(size_t face_idx = 0; face_idx < poses.size(); ++face_idx) {
 
-        auto trans = poses[face_idx];
+            auto trans = poses[face_idx];
 
-        tf::Transform face_pose;
+            tf::Transform face_pose;
 
-        face_pose.setOrigin( tf::Vector3( trans(0,3),
-                                          trans(1,3),
-                                          trans(2,3)) );
+            face_pose.setOrigin( tf::Vector3( trans(0,3),
+                                              trans(1,3),
+                                              trans(2,3)) );
 
-        tf::Quaternion qrot;
-        tf::Matrix3x3 mrot(
-                trans(0,0), trans(0,1), trans(0,2),
-                trans(1,0), trans(1,1), trans(1,2),
-                trans(2,0), trans(2,1), trans(2,2));
-        mrot.getRotation(qrot);
-        face_pose.setRotation(qrot);
+            tf::Quaternion qrot;
+            tf::Matrix3x3 mrot(
+                    trans(0,0), trans(0,1), trans(0,2),
+                    trans(1,0), trans(1,1), trans(1,2),
+                    trans(2,0), trans(2,1), trans(2,2));
+            mrot.getRotation(qrot);
+            face_pose.setRotation(qrot);
 
-        tf::StampedTransform transform(face_pose, 
-                rgb_msg->header.stamp,  // publish the transform with the same timestamp as the frame originally used
-                cameramodel.tfFrame(),
-                facePrefix + "_" + to_string(face_idx));
-        br.sendTransform(transform);
+            tf::StampedTransform transform(face_pose, 
+                    rgb_msg->header.stamp,  // publish the transform with the same timestamp as the frame originally used
+                    cameramodel.tfFrame(),
+                    facePrefix + "_" + to_string(face_idx));
+            br.sendTransform(transform);
 
-    }
+        }
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
-    if(pub.getNumSubscribers() > 0) {
-        ROS_INFO_ONCE("Starting to publish face tracking output for debug");
-        auto debugmsg = cv_bridge::CvImage(msg->header, "bgr8", estimator._debug).toImageMsg();
-        pub.publish(debugmsg);
-    }
+        if(pub.getNumSubscribers() > 0) {
+            ROS_INFO_ONCE("Starting to publish face tracking output for debug");
+            auto debugmsg = cv_bridge::CvImage(rgb_msg->header, "bgr8", estimator.drawDetections(rgb, all_features, poses)).toImageMsg();
+            pub.publish(debugmsg);
+        }
 #endif
+    }
 }
 

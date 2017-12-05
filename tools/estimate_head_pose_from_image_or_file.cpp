@@ -41,9 +41,10 @@ void estimate_head_pose_on_frameFileName(const std::string& frameFileName, HeadP
 
     auto nbfaces = 0;
 
-    for(size_t i = 0; i < NB_TESTS; i++) {
+    for(size_t i = 0; i < NB_TESTS - 1; i++) {
         estimator.update(img);
     }
+    auto all_features = estimator.update(img);
 
     // auto t_detection = getTickCount();
 
@@ -70,6 +71,11 @@ void estimate_head_pose_on_frameFileName(const std::string& frameFileName, HeadP
         cout << "Head pose not calculated!" << endl;
     }
 
+    #ifdef HEAD_POSE_ESTIMATION_DEBUG
+        static size_t img_id = 0;
+        imwrite(std::to_string(img_id) + "_head_pose.png", estimator.drawDetections(img, all_features, poses));
+        img_id += 1;
+    #endif
 }
 
 
@@ -145,9 +151,5 @@ int main(int argc, char **argv)
     // cout << "Face feature detection: " <<((t_detection-t_start) / NB_TESTS) /getTickFrequency() * 1000. << "ms;";
     // cout << "Pose estimation: " <<((t_end-t_detection) / NB_TESTS) /getTickFrequency() * 1000. << "ms;";
     cout << "Total time: " << (t_end-t_start) / getTickFrequency() * 1000. << "ms" << endl;
-
-#ifdef HEAD_POSE_ESTIMATION_DEBUG
-    imwrite("head_pose.png", estimator._debug);
-#endif
 
 }

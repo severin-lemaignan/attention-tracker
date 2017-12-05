@@ -1,13 +1,13 @@
 <launch>
+    <arg name="model" default="$(find gazr)/share/shape_predictor_68_face_landmarks.dat"/>
 
-    <arg name="model" />
-
-    <group ns="participant_purple">
-        <node pkg="3d_face_features" type="run" name="face_features_3d" output="screen" >
+    <group ns="camera">
+        <node pkg="gazr" type="estimate" name="face_features_3d" output="screen" >
             <param name="face_model" value="$(arg model)" />
-            <remap from="rgb" to="rgb/image_rect_color" />
-            <remap from="camera_info" to="rgb/camera_info" />
-            <remap from="depth" to="depth_registered/sw_registered/image_rect_raw" />
+            <param name="with_depth" value="true" />
+            <remap from="rgb" to="camera/rgb/image_rect_color" />
+            <remap from="camera_info" to="camera/rgb/camera_info" />
+            <remap from="depth" to="camera/depth_registered/sw_registered/image_rect_raw" />
         </node>
     </group>
 </launch>

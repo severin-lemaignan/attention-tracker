@@ -21,8 +21,6 @@
  */
 class FacialFeaturesPointCloudPublisher {
 
-    typedef sensor_msgs::PointCloud2 PointCloud;
-
 public:
     FacialFeaturesPointCloudPublisher(ros::NodeHandle& rosNode,
                                       const std::string& prefix,
@@ -34,42 +32,45 @@ public:
 private:
 
     template<typename T>
-    cv::Point3f makeFeatureCloud(const std::vector<cv::Point> points2d,
-                                 const sensor_msgs::ImageConstPtr& depth_msg,
-                                 PointCloud::Ptr& cloud_msg);
-
-    ros::NodeHandle& rosNode;
+    void makeFeatureCloud(const std::vector<cv::Point> points2d,
+                          const sensor_msgs::ImageConstPtr& depth_msg,
+                          sensor_msgs::PointCloud2Ptr& cloud_msg);
 
     image_geometry::PinholeCameraModel cameramodel;
 
     cv::Mat inputImage;
-    HeadPoseEstimation estimator;
-
-
-    // Subscriptions
-    /////////////////////////////////////////////////////////
-    std::shared_ptr<image_transport::ImageTransport> rgb_it_, depth_it_;
-    image_transport::SubscriberFilter sub_depth_, sub_rgb_;
-    message_filters::Subscriber<sensor_msgs::CameraInfo> sub_info_;
-    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> SyncPolicy;
-    typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> ExactSyncPolicy;
-    typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
-    typedef message_filters::Synchronizer<ExactSyncPolicy> ExactSynchronizer;
-    std::shared_ptr<Synchronizer> sync_;
-    std::shared_ptr<ExactSynchronizer> exact_sync_;
-
-    // Publishers
-    /////////////////////////////////////////////////////////
-
-    // prefix prepended to TF frames generated for each frame
-    std::string facePrefix;
-
-    ros::Publisher nb_detected_faces_pub;
-
-    ros::Publisher facial_features_pub;
 
     tf::TransformBroadcaster br;
     tf::Transform transform;
 
+    HeadPoseEstimation estimator;
+
+    // prefix prepended to TF frames generated for each frame
+    std::string facePrefix;
+
+    // Subscriptions
+    /////////////////////////////////////////////////////////
+    std::shared_ptr<image_transport::ImageTransport> rgb_it_;
+    std::shared_ptr<image_transport::ImageTransport> depth_it_;
+    image_transport::SubscriberFilter sub_depth_;
+    image_transport::SubscriberFilter sub_rgb_;
+    message_filters::Subscriber<sensor_msgs::CameraInfo> sub_info_;
+
+    // Publishers
+    /////////////////////////////////////////////////////////
+    ros::Publisher nb_detected_faces_pub;
+
+    ros::Publisher facial_features_pub;
+    
+#ifdef HEAD_POSE_ESTIMATION_DEBUG
+    image_transport::Publisher pub;
+#endif
+
+    // typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> SyncPolicy;
+    typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> ExactSyncPolicy;
+    // typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
+    typedef message_filters::Synchronizer<ExactSyncPolicy> ExactSynchronizer;
+    // std::shared_ptr<Synchronizer> sync_;
+    std::shared_ptr<ExactSynchronizer> exact_sync_;
 };
 
