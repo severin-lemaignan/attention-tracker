@@ -20,7 +20,6 @@ namespace enc = sensor_msgs::image_encodings;
 FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHandle& rosNode,
                                                                      const std::string& prefix,
                                                                      const std::string& model):
-    rosNode(rosNode),
     estimator(model),
     facePrefix(prefix)
 {
@@ -28,9 +27,6 @@ FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHa
     /// Subscribing
     rgb_it_.reset( new image_transport::ImageTransport(rosNode) );
     depth_it_.reset( new image_transport::ImageTransport(rosNode) );
-
-    exact_sync_.reset( new ExactSynchronizer(ExactSyncPolicy(5), sub_rgb_, sub_depth_, sub_info_) );
-    exact_sync_->registerCallback(bind(&FacialFeaturesPointCloudPublisher::imageCb, this, _1, _2, _3));
 
     // parameter for depth_image_transport hint
     std::string depth_image_transport_param = "depth_image_transport";
@@ -45,11 +41,15 @@ FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHa
     sub_info_.subscribe(rosNode, "camera_info", 1);
 
     /// Publishing
-    facial_features_pub = rosNode.advertise<PointCloud>("facial_features", 1);
+    nb_detected_faces_pub = rosNode.advertise<std_msgs::Char>("nb_detected_faces", 1);
+    facial_features_pub = rosNode.advertise<sensor_msgs::PointCloud2>("facial_features", 1);
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
     pub = rgb_it_->advertise("attention_tracker/faces/image",1);
 #endif
+
+    exact_sync_.reset( new ExactSynchronizer(ExactSyncPolicy(5), sub_rgb_, sub_depth_, sub_info_) );
+    exact_sync_->registerCallback(bind(&FacialFeaturesPointCloudPublisher::imageCb, this, _1, _2, _3));
 }
 
 /**
@@ -57,8 +57,8 @@ FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHa
  */
 template<typename T>
 void FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> points2d,
-                                                               const sensor_msgs::ImageConstPtr& depth_msg,
-                                                               PointCloud::Ptr& cloud_msg) {
+                                                         const sensor_msgs::ImageConstPtr& depth_msg,
+                                                         sensor_msgs::PointCloud2Ptr& cloud_msg) {
 
     // Use correct principal point from calibration
     float center_x = cameramodel.cx();
@@ -69,6 +69,7 @@ void FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> poi
     float constant_x = unit_scaling / cameramodel.fx();
     float constant_y = unit_scaling / cameramodel.fy();
     float bad_point = std::numeric_limits<float>::quiet_NaN ();
+
     int row_step = depth_msg->step / sizeof(T);
 
     sensor_msgs::PointCloud2Iterator<float> iter_x(*cloud_msg, "x");
@@ -77,38 +78,20 @@ void FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> poi
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_r(*cloud_msg, "r");
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(*cloud_msg, "g");
     sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(*cloud_msg, "b");
-    sensor_msgs::PointCloud2Iterator<uint8_t> iter_a(*cloud_msg, "a");
-
 
     for(size_t i = 0; i < points2d.size(); ++i) {
         auto point2d = points2d[i];
         const T* depth_row = reinterpret_cast<const T*>(&depth_msg->data[0]);
 
-        char validPoints = 0;
-        T avgDepth = 0;
+        depth_row += row_step * point2d.y;
 
-        depth_row += row_step * (point2d.y - 2);
-        for (size_t j = point2d.y - 2; j <= point2d.y + 2; j++) {
-            for (size_t i = point2d.x - 2; i <= point2d.x + 2; i++) {
-                T depth = depth_row[i];
-                if(DepthTraits<T>::valid(depth)) {
-                    validPoints++;
-                    avgDepth += depth;
-                }
-            }
-            depth_row += row_step;
-        }
-
-        if(validPoints > 0)
+        T depth = depth_row[point2d.x];
+        if(DepthTraits<T>::valid(depth))
         {
-            T depth = avgDepth / validPoints;
-
             // Fill in XYZ
             *iter_x = (point2d.x - center_x) * depth * constant_x;
             *iter_y = (point2d.y - center_y) * depth * constant_y;
             *iter_z = DepthTraits<T>::toMeters(depth);
-
-            *iter_a = 255;
 
             if(i <= 16) {*iter_r = 100; *iter_g = 100; *iter_b = 100;} // face silhouette
             if(i >= 17 && i <= 21) {*iter_r = 255; *iter_g = 128; *iter_b = 0;} // right eyebrow
@@ -130,7 +113,6 @@ void FacialFeaturesPointCloudPublisher::makeFeatureCloud(const vector<Point> poi
         ++iter_y;
         ++iter_z;
 
-        ++iter_a;
         ++iter_r;
         ++iter_g;
         ++iter_b;
@@ -178,7 +160,7 @@ void FacialFeaturesPointCloudPublisher::imageCb(const sensor_msgs::ImageConstPtr
         auto features = all_features[0];
 
         // Allocate new point cloud message
-        PointCloud::Ptr cloud_msg (new PointCloud);
+        sensor_msgs::PointCloud2Ptr cloud_msg (new sensor_msgs::PointCloud2);
         cloud_msg->header = depth_msg->header; // Use depth image time stamp
         cloud_msg->height = 1;
         cloud_msg->width  = 68; // nb of facial features
