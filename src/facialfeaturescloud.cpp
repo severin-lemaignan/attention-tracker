@@ -164,77 +164,87 @@ void FacialFeaturesPointCloudPublisher::imageCb(const sensor_msgs::ImageConstPtr
     ********************************************************************/
 
     auto all_features = estimator.update(rgb);
-    if(all_features.size() > 1) ROS_WARN("More than one face detected. 3D facial features computed for the first one only");
-
-    auto features = all_features[0];
-
-    // Allocate new point cloud message
-    PointCloud::Ptr cloud_msg (new PointCloud);
-    cloud_msg->header = depth_msg->header; // Use depth image time stamp
-    cloud_msg->height = 1;
-    cloud_msg->width  = 68; // nb of facial features
-    cloud_msg->is_dense = false;
-    cloud_msg->is_bigendian = false;
-
-    sensor_msgs::PointCloud2Modifier pcd_modifier(*cloud_msg);
-    pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
-
-    if (depth_msg->encoding == enc::TYPE_16UC1)
+    if(all_features.empty())
     {
-        ROS_INFO_ONCE("Depth stream is 16UC1: mm encoded as integers");
-        makeFeatureCloud<uint16_t>(features, depth_msg, cloud_msg);
+        return;
     }
-    else if (depth_msg->encoding == enc::TYPE_32FC1)
+    else
     {
-        ROS_INFO_ONCE("Depth stream is 32FC1: m encoded as 32bit floats");
-        makeFeatureCloud<float>(features, depth_msg, cloud_msg);
-    }
+        if(all_features.size() > 1)
+        {
+            ROS_WARN("More than one face detected. 3D facial features computed for the first one only");
+        }
 
-    facial_features_pub.publish(cloud_msg);
+        auto features = all_features[0];
+
+        // Allocate new point cloud message
+        PointCloud::Ptr cloud_msg (new PointCloud);
+        cloud_msg->header = depth_msg->header; // Use depth image time stamp
+        cloud_msg->height = 1;
+        cloud_msg->width  = 68; // nb of facial features
+        cloud_msg->is_dense = false;
+        cloud_msg->is_bigendian = false;
+
+        sensor_msgs::PointCloud2Modifier pcd_modifier(*cloud_msg);
+        pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+
+        if (depth_msg->encoding == enc::TYPE_16UC1)
+        {
+            ROS_INFO_ONCE("Depth stream is 16UC1: mm encoded as integers");
+            makeFeatureCloud<uint16_t>(features, depth_msg, cloud_msg);
+        }
+        else if (depth_msg->encoding == enc::TYPE_32FC1)
+        {
+            ROS_INFO_ONCE("Depth stream is 32FC1: m encoded as 32bit floats");
+            makeFeatureCloud<float>(features, depth_msg, cloud_msg);
+        }
+
+        facial_features_pub.publish(cloud_msg);
 
     
-    auto poses = estimator.poses();
+        auto poses = estimator.poses();
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
         ROS_INFO_STREAM(poses.size() << " faces detected.");
 #endif
 
-    std_msgs::Char nb_faces;
-    nb_faces.data = poses.size();
+        std_msgs::Char nb_faces;
+        nb_faces.data = poses.size();
 
-    nb_detected_faces_pub.publish(nb_faces);
+        nb_detected_faces_pub.publish(nb_faces);
 
-    for(size_t face_idx = 0; face_idx < poses.size(); ++face_idx) {
+        for(size_t face_idx = 0; face_idx < poses.size(); ++face_idx) {
 
-        auto trans = poses[face_idx];
+            auto trans = poses[face_idx];
 
-        tf::Transform face_pose;
+            tf::Transform face_pose;
 
-        face_pose.setOrigin( tf::Vector3( trans(0,3),
-                                          trans(1,3),
-                                          trans(2,3)) );
+            face_pose.setOrigin( tf::Vector3( trans(0,3),
+                                              trans(1,3),
+                                              trans(2,3)) );
 
-        tf::Quaternion qrot;
-        tf::Matrix3x3 mrot(
-                trans(0,0), trans(0,1), trans(0,2),
-                trans(1,0), trans(1,1), trans(1,2),
-                trans(2,0), trans(2,1), trans(2,2));
-        mrot.getRotation(qrot);
-        face_pose.setRotation(qrot);
+            tf::Quaternion qrot;
+            tf::Matrix3x3 mrot(
+                    trans(0,0), trans(0,1), trans(0,2),
+                    trans(1,0), trans(1,1), trans(1,2),
+                    trans(2,0), trans(2,1), trans(2,2));
+            mrot.getRotation(qrot);
+            face_pose.setRotation(qrot);
 
-        tf::StampedTransform transform(face_pose, 
-                rgb_msg->header.stamp,  // publish the transform with the same timestamp as the frame originally used
-                cameramodel.tfFrame(),
-                facePrefix + "_" + to_string(face_idx));
-        br.sendTransform(transform);
+            tf::StampedTransform transform(face_pose, 
+                    rgb_msg->header.stamp,  // publish the transform with the same timestamp as the frame originally used
+                    cameramodel.tfFrame(),
+                    facePrefix + "_" + to_string(face_idx));
+            br.sendTransform(transform);
 
-    }
+        }
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
-    if(pub.getNumSubscribers() > 0) {
-        ROS_INFO_ONCE("Starting to publish face tracking output for debug");
-        auto debugmsg = cv_bridge::CvImage(rgb_msg->header, "bgr8", estimator.drawDetections(rgb, all_features, poses)).toImageMsg();
-        pub.publish(debugmsg);
-    }
+        if(pub.getNumSubscribers() > 0) {
+            ROS_INFO_ONCE("Starting to publish face tracking output for debug");
+            auto debugmsg = cv_bridge::CvImage(rgb_msg->header, "bgr8", estimator.drawDetections(rgb, all_features, poses)).toImageMsg();
+            pub.publish(debugmsg);
+        }
 #endif
+    }
 }
 
