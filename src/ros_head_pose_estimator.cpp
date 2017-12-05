@@ -21,10 +21,10 @@ HeadPoseEstimator::HeadPoseEstimator(ros::NodeHandle& rosNode,
 {
     sub = it.subscribeCamera("rgb", 1, &HeadPoseEstimator::detectFaces, this);
 
-    nb_detected_faces_pub = rosNode.advertise<std_msgs::Char>("nb_detected_faces", 1);
+    nb_detected_faces_pub = rosNode.advertise<std_msgs::Char>("gazr/detected_faces/count", 1);
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
-    pub = it.advertise("attention_tracker/faces/image",1);
+    pub = it.advertise("gazr/detected_faces/image",1);
 #endif
 }
 

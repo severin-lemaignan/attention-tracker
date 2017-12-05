@@ -41,11 +41,11 @@ FacialFeaturesPointCloudPublisher::FacialFeaturesPointCloudPublisher(ros::NodeHa
     sub_info_.subscribe(rosNode, "camera_info", 1);
 
     /// Publishing
-    nb_detected_faces_pub = rosNode.advertise<std_msgs::Char>("nb_detected_faces", 1);
-    facial_features_pub = rosNode.advertise<sensor_msgs::PointCloud2>("facial_features", 1);
+    nb_detected_faces_pub = rosNode.advertise<std_msgs::Char>("gazr/detected_faces/count", 1);
+    facial_features_pub = rosNode.advertise<sensor_msgs::PointCloud2>("gazr/facial_features", 1);
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
-    pub = rgb_it_->advertise("attention_tracker/faces/image",1);
+    pub = rgb_it_->advertise("gazr/detected_faces/image",1);
 #endif
 
     exact_sync_.reset( new ExactSynchronizer(ExactSyncPolicy(5), sub_rgb_, sub_depth_, sub_info_) );
