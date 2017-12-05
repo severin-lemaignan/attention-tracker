@@ -7,7 +7,7 @@
 #include <sensor_msgs/point_cloud2_iterator.h>
 #include <cv_bridge/cv_bridge.h>
 
-#include <depth_image_proc/depth_traits.h>
+#include "depth_traits.h"
 
 
 #include "facialfeaturescloud.hpp"
