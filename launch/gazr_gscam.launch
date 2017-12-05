@@ -11,8 +11,8 @@
     <param name="sync_sink" value="true"/>
   </node>
 
-  <node pkg="gazr" type="estimate" name="gazr">
-    <param name="face_model" value="$(find gazr)/share/shape_predictor_68_face_landmarks.dat" />
+  <node pkg="gazr" type="estimate" name="gazr" required="true" output="screen">
+    <param name="face_model" value="$(find gazr)/shape_predictor_68_face_landmarks.dat" />
     <remap from="/image" to="/camera/image_raw"/>
   </node>
 
