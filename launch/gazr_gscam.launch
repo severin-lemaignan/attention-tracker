@@ -12,7 +12,7 @@
   </node>
 
   <node pkg="gazr" type="estimate" name="gazr">
-    <param name="face_model" value="$(find gazr)/shape_predictor_68_face_landmarks.dat" />
+    <param name="face_model" value="$(find gazr)/share/shape_predictor_68_face_landmarks.dat" />
     <remap from="/image" to="/camera/image_raw"/>
   </node>
 
