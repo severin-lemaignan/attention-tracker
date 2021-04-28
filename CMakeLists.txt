@@ -59,7 +59,7 @@ endif()
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_library(gazr SHARED src/head_pose_estimation.cpp)
-target_link_libraries(gazr ${dlib_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(gazr dlib::dlib ${OpenCV_LIBRARIES})
 
 if(WITH_ROS)
 
