@@ -46,7 +46,10 @@ std::vector<std::vector<Point>> HeadPoseEstimation::update(cv::InputArray _image
 #endif
     }
 
-    current_image = cv_image<bgr_pixel>(image);
+    // intermediate value to avoid potential compilation error:
+    //     conversion from ‘const cv::Mat’ to non-scalar type ‘IplImage’
+    auto ipl_img = cvIplImage(image);
+    current_image = cv_image<bgr_pixel>(&ipl_img);
 
     faces = detector(current_image);
 
