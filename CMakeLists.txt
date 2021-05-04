@@ -9,7 +9,6 @@ set(VERSION ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPAC
 add_definitions(-std=c++11 -DGAZR_VERSION=${VERSION})
 
 find_package(dlib REQUIRED)
-include_directories(dlib::dlib)
 
 option(DEBUG_OUTPUT "Enable debug visualizations" OFF)
 option(WITH_TOOLS "Compile sample tools" OFF)
