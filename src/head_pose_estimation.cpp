@@ -172,34 +172,34 @@ void HeadPoseEstimation::drawFeatures(const std::vector<std::vector<Point>>& det
         const auto& feature_points = detected_features[j];
 
         for (size_t i = 1; i <= 16; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
 
         for (size_t i = 28; i <= 30; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
 
         for (size_t i = 18; i <= 21; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
         for (size_t i = 23; i <= 26; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
         for (size_t i = 31; i <= 35; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
-        line(result, feature_points[30], feature_points[35], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        cv::line(result, feature_points[30], feature_points[35], line_color, 2, CV_AA);
 
         for (size_t i = 37; i <= 41; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
-        line(result, feature_points[36], feature_points[41], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        cv::line(result, feature_points[36], feature_points[41], line_color, 2, CV_AA);
 
         for (size_t i = 43; i <= 47; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
-        line(result, feature_points[42], feature_points[47], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        cv::line(result, feature_points[42], feature_points[47], line_color, 2, CV_AA);
 
         for (size_t i = 49; i <= 59; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
-        line(result, feature_points[48], feature_points[59], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        cv::line(result, feature_points[48], feature_points[59], line_color, 2, CV_AA);
 
         for (size_t i = 61; i <= 67; ++i)
-            line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
-        line(result, feature_points[60], feature_points[67], line_color, 2, CV_AA);
+            cv::line(result, feature_points[i], feature_points[i-1], line_color, 2, CV_AA);
+        cv::line(result, feature_points[60], feature_points[67], line_color, 2, CV_AA);
 
         // for (size_t i = 0; i < 68 ; i++) {
             // putText(result, to_string(i), feature_points[i], FONT_HERSHEY_DUPLEX, 0.6, text_color);
@@ -251,9 +251,9 @@ void HeadPoseEstimation::drawPose(const head_pose& detected_pose, size_t face_id
     static const auto x_axis_color = Scalar(255, 0, 0);
     static const auto y_axis_color = Scalar(0, 255, 0);
     static const auto z_axis_color = Scalar(0, 0, 255);
-    line(result, projected_axes[0], projected_axes[3], x_axis_color,2,CV_AA);
-    line(result, projected_axes[0], projected_axes[2], y_axis_color,2,CV_AA);
-    line(result, projected_axes[0], projected_axes[1], z_axis_color,2,CV_AA);
+    cv::line(result, projected_axes[0], projected_axes[3], x_axis_color,2,CV_AA);
+    cv::line(result, projected_axes[0], projected_axes[2], y_axis_color,2,CV_AA);
+    cv::line(result, projected_axes[0], projected_axes[1], z_axis_color,2,CV_AA);
 
     static const auto text_color = Scalar(0,0,255);
     putText(result, "(" + to_string(int(detected_pose(0,3) * 100)) + "cm, " + to_string(int(detected_pose(1,3) * 100)) + "cm, " + to_string(int(detected_pose(2,3) * 100)) + "cm)", coordsOf(face_idx, SELLION), FONT_HERSHEY_SIMPLEX, 0.5, text_color,2);
