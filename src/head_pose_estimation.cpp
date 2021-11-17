@@ -1,9 +1,10 @@
+#include <opencv2/core/types_c.h>  // cvIplImage
+#include <opencv2/imgproc/imgproc_c.h>
+
 #include <cmath>
 #include <ctime>
-
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/imgproc/imgproc_c.h>
 
 #ifdef HEAD_POSE_ESTIMATION_DEBUG
 #include <iostream>
