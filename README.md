@@ -52,7 +52,9 @@ You need to [download](http://dlib.net/) and extract ``Dlib`` somewhere. This
 application requires ``dlib >= 18.18``. On Ubuntu 16.04 and above, `sudo
 apt-get install libdlib-dev`
 
-You also need OpenCV. On Ubuntu, `sudo apt-get install libopencv-dev`.
+You also need OpenCV. On Ubuntu, `sudo apt-get install libopencv-dev`. The code
+has been last tested with OpenCV4. Previous versions of OpenCV might or might
+not work.
 
 ### Installation
 
@@ -60,24 +62,28 @@ The library uses a standard ``CMake`` workflow:
 
 ```
 $ mkdir build && cd build
-$ cmake ..
+$ cmake -DCMAKE_BUILD_TYPE=Release ..
 $ make
 ```
 
-By default, only the ROS nodes are compiled. You can compile as well stand-alone
-tools (for instance, to detect faces in a video) by calling `cmake` with the
-parameter `WITH_TOOLS=TRUE`:
+**Do not forget to enable Release mode, otherwise the performances will be
+terrible.**
 
+You can test the result with:
 ```
-$ cmake -DWITH_TOOLS=TRUE ..
+$ ./gazr_show_head_pose ../share/shape_predictor_68_face_landmarks.dat
 ```
 
-Finally, to install the library and the executables:
+
+Finally, if desired, you can install the library and the executables:
 
 ```
 $ make install
 ```
 
+
+By default, only the sample tools are built (CMake parameter `WITH_TOOLS=ON`).
+See below for ROS support.
 
 ROS support
 -----------
@@ -91,15 +97,18 @@ Before building gazr with the ROS wrapper, make sure that you have installed the
  following ROS- < distro > package dependencies, where
 < distro > is the ROS distribution in your machine.
 
+The code has been tested up to ROS noetic, but should work for any ROS1
+distribution.
+
 For example, this is the case for ROS-kinetic distribution:
 ```
 sudo apt-get install ros-kinetic-roscpp ros-kinetic-tf ros-kinetic-std-msgs ros-kinetic-visualization-msgs ros-kinetic-sensor-msgs ros-kinetic-cv-bridge ros-kinetic-image-transport ros-kinetic-image-geometry
 ```
 
-The compilation of the ROS wrapper is enable by default. You can disable it with:
+The compilation of the ROS wrapper is disabled by default. You can enable it with:
 
 ```
-cmake -DWITH_ROS=OFF
+cmake -DWITH_ROS=ON
 ```
 
 ### Usage

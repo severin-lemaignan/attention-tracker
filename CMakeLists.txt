@@ -11,8 +11,8 @@ add_definitions(-std=c++11 -DGAZR_VERSION=${VERSION})
 find_package(dlib REQUIRED)
 
 option(DEBUG_OUTPUT "Enable debug visualizations" OFF)
-option(WITH_TOOLS "Compile sample tools" OFF)
-option(WITH_ROS "Build ROS nodes" ON)
+option(WITH_TOOLS "Compile sample tools" ON)
+option(WITH_ROS "Build ROS nodes" OFF)
 
 if(WITH_ROS)
 
