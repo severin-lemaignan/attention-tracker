@@ -1,8 +1,7 @@
-#include <opencv2/highgui/highgui.hpp>
-#include <iostream>
-#include <iomanip>
-
 #include <boost/program_options.hpp>
+#include <iomanip>
+#include <iostream>
+#include <opencv2/highgui/highgui.hpp>
 
 #include "../src/head_pose_estimation.hpp"
 
@@ -13,12 +12,9 @@ using namespace std;
 using namespace cv;
 namespace po = boost::program_options;
 
-inline double todeg(double rad) {
-    return rad * 180 / M_PI;
-}
+inline double todeg(double rad) { return rad * 180 / M_PI; }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     Mat frame;
 
     namedWindow("headpose");
@@ -29,18 +25,16 @@ int main(int argc, char **argv)
     p.add("video", 1);
 
     po::options_description desc("Allowed options");
-    desc.add_options()
-            ("help,h", "produces help message")
-            ("version,v", "shows version and exits")
-            ("model", po::value<string>(), "dlib's trained face model")
-            ("video", po::value<string>(), "video to process. If omitted, uses the first webcam")
-            ;
+    desc.add_options()("help,h", "produces help message")(
+        "version,v", "shows version and exits")("model", po::value<string>(),
+                                                "dlib's trained face model")(
+        "video", po::value<string>(),
+        "video to process. If omitted, uses the first webcam");
 
     po::variables_map vm;
-    po::store(po::command_line_parser(argc, argv)
-                        .options(desc)
-                        .positional(p)
-                        .run(), vm);
+    po::store(
+        po::command_line_parser(argc, argv).options(desc).positional(p).run(),
+        vm);
     po::notify(vm);
 
     if (vm.count("help")) {
@@ -61,7 +55,6 @@ int main(int argc, char **argv)
 
     auto estimator = HeadPoseEstimation(vm["model"].as<string>());
 
-
     // Configure the video capture
     // ===========================
 
@@ -69,23 +62,21 @@ int main(int argc, char **argv)
 
     if (vm.count("video") == 0) {
         video_in = VideoCapture(0);
-        video_in.set(CV_CAP_PROP_FRAME_WIDTH, 640);
-        video_in.set(CV_CAP_PROP_FRAME_HEIGHT, 480);
-    }
-    else {
+        video_in.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+        video_in.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    } else {
         video_in = VideoCapture(vm["video"].as<string>());
     }
 
     // adjust for your webcam!
     estimator.focalLength = 500;
 
-    if(!video_in.isOpened()) {
+    if (!video_in.isOpened()) {
         cerr << "Couldn't open camera/video file" << endl;
         return 1;
     }
 
-
-    while(true) {
+    while (true) {
         auto ok = video_in.read(frame);
         if (!ok) break;
 
@@ -95,13 +86,12 @@ int main(int argc, char **argv)
         auto poses = estimator.poses();
 
         auto t_end = getTickCount();
-        cout << "Processing time for this frame: " << (t_end-t_start) / getTickFrequency() * 1000. << "ms" << endl;
+        cout << "Processing time for this frame: "
+             << (t_end - t_start) / getTickFrequency() * 1000. << "ms" << endl;
 
-        imshow("headpose", estimator.drawDetections(frame, all_features, poses));
+        imshow("headpose",
+               estimator.drawDetections(frame, all_features, poses));
         if (waitKey(10) >= 0) break;
-
     }
 }
-
-
 
