@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     }
 
     int i = 0;
-    while(true) {
+    while (true) {
         auto ok = video_in.read(frame);
         if (!ok) break;
         i++;
@@ -86,9 +86,12 @@ int main(int argc, char **argv) {
 
         auto all_features = estimator.update(frame);
         auto poses = estimator.poses();
+        auto pupils = estimator.pupils();
+        cout << "Detected pupils: " << pupils.size() << endl;
 
         auto t_end = getTickCount();
-        cout << "Processing time for frame " << i << ": " << (t_end-t_start) / getTickFrequency() * 1000. << "ms" << endl;
+        cout << "Processing time for frame " << i << ": "
+             << (t_end - t_start) / getTickFrequency() * 1000. << "ms" << endl;
 
         imshow("headpose",
                estimator.drawDetections(frame, all_features, poses));

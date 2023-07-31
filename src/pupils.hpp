@@ -4,19 +4,18 @@
 #include <opencv2/core/core.hpp>
 
 class Pupils {
-
-public:
-
+   public:
     Pupils();
 
     /** Returns a tuple (left eye contour, left eye ROI, right eye contour,
-     * right eye ROI) in a fixed-sized reprojected face as created by face_reconstruction.hpp.
+     * right eye ROI) in a fixed-sized reprojected face as created by
+     * face_reconstruction.hpp.
      *
      * Note that the contour coordinates are relative to the top-left corner
      * of the ROI.
      */
-    std::tuple<std::array<cv::Point, 6>, cv::Rect,
-               std::array<cv::Point, 6>, cv::Rect>
+    std::tuple<std::array<cv::Point, 6>, cv::Rect, std::array<cv::Point, 6>,
+               cv::Rect>
     eyesROI() const;
 
     /** Returns the position of the left and right pupils, relative to the left
@@ -30,15 +29,18 @@ public:
      *   \_______/      \_______/      \_______/     \_______/
      *
      */
-    std::pair<cv::Point2f, cv::Point2f>
-    findRelativePose(cv::InputArray reprojected_face) const;
+    std::pair<cv::Point2f, cv::Point2f> findRelativePose(
+        cv::InputArray reprojected_face) const;
 
-private:
+    void drawPupils(std::pair<cv::Point2f, cv::Point2f> pupils,
+                    cv::Mat& result) const;
+
+   private:
     std::array<cv::Point, 6> left_eye, right_eye;
+
     cv::Rect left_eye_roi, right_eye_roi;
 
     cv::Mat left_mask, right_mask;
-
 };
 #endif
 
